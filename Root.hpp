@@ -23,9 +23,7 @@ typedef unsigned int INDEX;
 
 
 
-
-
-atomic<long long> Code_Time = 0;
+atomic<int> Code_Time = 0;
 
 
 char IF_SELF_TURN_OFF = 1;
@@ -40,7 +38,7 @@ char IF_NEED_CAPTURE = 0;
 char IF_NEED_ACTION = 0;
 
 atomic<ID> NEWIST_USEFUL_ID = 1;
-atomic<long long> CURRENT_MODEL_TIME = 100;
+atomic<int> CURRENT_MODEL_TIME = 1;
 atomic<unsigned int> ALL_NUM_OF_CH = 0;
 atomic<unsigned int> LAST_PACK_NUMBER = 0;
 
@@ -52,7 +50,7 @@ atomic<int> CURRENT_SYSTEM_MEMORY;
 
 
 char time_curr = 0;
-atomic<long long> use_time[4] = {0, 0, 0, 0};
+atomic<int> use_time[4] = {0, 0, 0, 0};
 atomic<int> time_node_occupy[4] = {0, 0, 0, 0};
 atomic<int> node_total_occupy = 0;
 
@@ -60,15 +58,16 @@ atomic<int> node_total_occupy = 0;
 struct state_record_file
 {
     ID newist_useful_id = 1;
-    unsigned int all_num_of_ch = 0;
-    unsigned int last_pack_num = 0;
+    int all_num_of_ch = 0;
+    int last_pack_num = 0;
 
     char time_curr = 0;
     int time_node_occupy[4] = {0, 0, 0, 0};
-    long long use_time[4] = {0, 0, 0, 0};
-    long long node_total_occupy = 0;
+    int use_time[4] = {0, 0, 0, 0};
 
-    long long current_model_time = 100;
+    int current_model_time = 100;
+
+    long long node_total_occupy = 0;
     long long size_of_pre_load_file = 0;
 };
 
@@ -179,10 +178,10 @@ struct Pack_Record
 
     ID pack_id = 0;
 
-    int use_time[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int use_time[4] = {0, 0, 0, 0};
     int history_use_num[4] = {0, 0, 0, 0};
 };
-// 14*4
+// 10*4
 
 vector<Pack_Record> Neuro_Pack_Record_Storage;
 vector< atomic<char> > Neuro_Pack_Record_Occupy;
@@ -296,7 +295,7 @@ INDEX pack_insert_position_provide(ID target, char pack_size)
             Neuro_Pack_Record_Storage[idx].pack_size = pack_size;
             Neuro_Pack_Record_Storage[idx].pack_state = 1;
 
-        } else { // 新建
+        } else {
             Pack_Record new_record;
             new_record.pack_size = pack_size;
             new_record.pack_state = 1;
@@ -322,7 +321,7 @@ INDEX pack_insert_position_provide(ID target, char pack_size)
         char suitable_success = 1;
 
         while (!Free_2_Pack_Index_List.empty())
-        { // 覆盖
+        {
             int expected = 0;
             while( !Occupy_Neuro_Pack_Record_Storage.compare_exchange_strong(expected, 1, memory_order_seq_cst) )
                 expected = 0;
@@ -334,28 +333,22 @@ INDEX pack_insert_position_provide(ID target, char pack_size)
             while( !Occupy_Neuro_Pack_Record_Storage.compare_exchange_strong(expected, 0, memory_order_seq_cst) )
                 expected = 1;
 
-            //三重棢�骄1�71ￄ1�77
             char expected_char = 0;
 
-            //存储连续性检骄1�71ￄ1�77
             while(curr_check < pack_size && suitable_success != 0)
             {
-                //提前筛出
                 if(Neuro_Pack_Record_Storage[idx].pack_state != 0)
                 {
                     suitable_success = 0;
                     break;
                 }
 
-                //非写
                 while(!Neuro_Pack_Write_Occupy[idx].compare_exchange_strong(expected_char, 1, memory_order_seq_cst))
                     expected_char = 0;
                 
-                //非读
                 while(!Neuro_Pack_Read_Occupy[idx].compare_exchange_strong(expected_char, 1, memory_order_seq_cst))
                     expected_char = 0;
 
-                //非占甄1�71ￄ1�77
                 if(Neuro_Pack_Record_Storage[idx].pack_state == 0)
                 {
                     cover_check[curr_check] = idx;
@@ -367,18 +360,16 @@ INDEX pack_insert_position_provide(ID target, char pack_size)
                         curr_check = 0;
                         first_idx = cover_check[0];
                         
-                        //全体包填冄1�71ￄ1�77
                         while(curr_check < pack_size)
                         {
                             idx = cover_check[curr_check];
                             Neuro_Pack_Record_Storage[idx].pack_size = pack_size;
                             Neuro_Pack_Record_Storage[idx].pack_state = 1;
 
-                            //解除占用
                             Neuro_Pack_Write_Occupy[idx].fetch_sub(1);
                             Neuro_Pack_Read_Occupy[idx].fetch_sub(1);
                         }
-                    }//成功找到连续位置
+                    }
 
                 } else {
                     suitable_success = 0;
@@ -386,11 +377,10 @@ INDEX pack_insert_position_provide(ID target, char pack_size)
                 }
             }
             
-        }// 覆盖结束 戄1�71ￄ1�77 失败
+        }
         
         if (Free_2_Pack_Index_List.empty() && suitable_success != 2)
         {
-            // 新建
             int expected = 0;
             while( Occupy_Neuro_Pack_Storage.compare_exchange_strong(expected, 1, memory_order_seq_cst) )
                 expected = 0;
@@ -431,7 +421,7 @@ INDEX pack_insert_position_provide(ID target, char pack_size)
         char suitable_success = 1;
 
         while (!Free_4_Pack_Index_List.empty())
-        { // 覆盖
+        {
             int expected = 0;
             while( !Occupy_Neuro_Pack_Record_Storage.compare_exchange_strong(expected, 1, memory_order_seq_cst) )
                 expected = 0;
@@ -772,21 +762,16 @@ long long LIMIT_RAM = 24 * one_G;
 
 float Pack_Attract_Rate = 0;
 
-int gap_time = 16 * 256;
+int gap_time = 16;
 
-long long time_update_gap = 0xFFFFFFFFFFFFF000;
+int time_update_gap = 0xFFFFFFF0;
 
 void Neuro_Use_Record_Update(ID target_id)
 {
     INDEX idx = ID_Find_Pack_Index[target_id];
     Pack_Record& pack_record = Neuro_Pack_Record_Storage[idx];
 
-    long long curr_time = 0;
-    long long front = pack_record.use_time[pack_record.time_curr * 2];
-    front = front << 32;
-    long long back = pack_record.use_time[pack_record.time_curr * 2 + 1];
-    curr_time |= front;
-    curr_time |= back;
+    int curr_time = pack_record.use_time[pack_record.time_curr];
 
     if (curr_time != (CURRENT_MODEL_TIME & time_update_gap) )
     {
@@ -797,22 +782,18 @@ void Neuro_Use_Record_Update(ID target_id)
 
         curr_time = CURRENT_MODEL_TIME & time_update_gap;
 
-        pack_record.use_time[pack_record.time_curr * 2] = curr_time >> 32;
-        pack_record.use_time[pack_record.time_curr * 2 + 1] = curr_time & 0xffffffff;
+        pack_record.use_time[pack_record.time_curr] = curr_time;
     }
 
     pack_record.history_use_num[pack_record.time_curr] += 1;
-    // 更新tory_use_num[pack_record.time_curr] += 1;
 
     time_node_occupy[time_curr] += 1;
 
-} // 使用次数更新函数结束
+}
 
 
-// 冷包剔除
 void Pack_Clear_Thread()
 {
-    //非重要内存数据剔附1�71ￄ1�77
     int Half_Pack_Limit = Pack_Limit * 0.5;
 
     while (IF_SELF_TURN_OFF)
@@ -824,7 +805,6 @@ void Pack_Clear_Thread()
 
         float ave_occupy = node_total_occupy / (Current_Pack_Num.load() + 1);
 
-        // 使用频度 数据占用程度，取时间使用怄1�71ￄ1�77
         int i = 1;
         while (i < Neuro_Pack_Storage.size())
         {
@@ -834,11 +814,11 @@ void Pack_Clear_Thread()
                 continue;
 
             int curr_pack_total_history_use_num = 0;
-            long long low_permit = use_time[time_curr] - 4 * gap_time;
+            int low_permit = use_time[time_curr] - 4 * gap_time;
 
             for (int b = 0; b < 4; b++)
             {
-                if (*(long long *)(pack_record.use_time + 2 * b) < low_permit)
+                if (pack_record.use_time[b] < low_permit)
                     continue;
                 
                 curr_pack_total_history_use_num += pack_record.history_use_num[b];
@@ -846,22 +826,19 @@ void Pack_Clear_Thread()
 
             float Curr_Pack_Attract = (curr_pack_total_history_use_num - ave_occupy) / ave_occupy;
 
-            // 触发删除判定
-            if (CURRENT_MODEL_TIME - *(long long *)(pack_record.use_time + pack_record.time_curr * 2) > 360000 // 360秒未使用
+            if (CURRENT_MODEL_TIME - pack_record.use_time[pack_record.time_curr] > 360
                 || Curr_Pack_Attract + Pack_Attract_Rate < 0)
             {
-                // 包使用记彄1�71ￄ1�77 删除
                 pack_record.pack_state = 6;
 
-                // 删除匄1�71ￄ1�77
                 add_to_Will_Write_Neuro_Queue(pack_record.pack_id);
-            } // 触发删除判定 解决
+            }
             i++;
 
-        } // 遍历完一个包
+        }
 
         i = 1;
-    } // 重复工作
+    }
 }
 
 
@@ -888,6 +865,7 @@ struct Neuro_Head_Item
     unsigned char neuro_kind;
     unsigned char node_size = 1;
     unsigned short used_item_num = 0;
+    
 };
 
 
@@ -901,9 +879,11 @@ Neuro_Head_Item neuro_head_read(int x)
 }
 
 
+
+
 struct Neuro_Concept_Desc
 {
-    char neuro_is_concept = 4;
+    char neuro_is_concept = 1;
     char be_restrain_num = 0;
     char limit_predict_num = 8;
     char predict_stability_num = 0; // 8/16/32
@@ -914,21 +894,18 @@ struct Neuro_Concept_Desc
     float predict_stability = 0;
 };
 
-
 struct Neuro_Image_Desc
 {
-    char neuro_is_image = 1;
+    char neuro_is_image = 2;
     char detail_kind;
     char limit_predict_num = 8;
-    char all_predict_stability_num = 0; // 8/16/32
+    char all_predict_stability_num = 0; // num = 8/16/32
 
     int neuro_active_num = 0;
     int self_attention = 0;
     
     float predict_stability_8 = 0;
     // float predict_stability_32 = 0;
-    float forward_predict_stability = 0;
-    float backward_predict_stability = 0;
 
     // 
     float upward_predict_ability = 0;
@@ -940,7 +917,7 @@ struct Neuro_Image_Desc
 
     float puruse = 0;
 
-    //9
+    //10
 
     // unsigned char red;
     // unsigned char green;
@@ -954,7 +931,7 @@ struct Neuro_Image_Desc
 
 struct Neuro_Time_Desc
 {
-    char neuro_is_time = 2;
+    char neuro_is_time = 3;
     char detail_kind;
     char limit_predict_num = 8;
     char predict_stability_num = 0;
@@ -971,7 +948,7 @@ struct Neuro_Time_Desc
 
 struct Neuro_Text_Desc
 {
-    char neuro_is_text = 3;
+    char neuro_is_text = 4;
     char detail_kind;
     char limit_predict_num = 8;
     char predict_stability_num = 0; // 8/16/32
@@ -980,6 +957,7 @@ struct Neuro_Text_Desc
     int self_attention = 0;
 
     float predict_stability = 0;
+
     float forward_predict_stability = 0;
     float backward_predict_stability = 0;
     // 6
@@ -993,30 +971,51 @@ struct Neuro_Text_Desc
 //
 union Neuro_Desc
 {
-    Neuro_Image_Desc image_desc;
-    Neuro_Text_Desc text_desc;
     Neuro_Concept_Desc concept_desc;
+    Neuro_Image_Desc image_desc;
+    Neuro_Time_Desc time_desc;
+    Neuro_Text_Desc text_desc;
 };
 
-//图像条目
-struct Neuro_Image_Item
+
+struct Attribute_Head_Item
+{
+    char attribute_kind = -1;
+    char updateable = 0;
+    char condition_result_num = 0;
+
+    int stat_num = 0;
+    int releize_num = 0;
+};
+
+struct Neuro_Filler_Item
 {
     char is_neuro_item = 1;
-    char item_is_image = 1;
-    char logic = 1;
-    char related_scale;
+    char item_is_filler = 0;
+};
 
-    char direction;
-    char direction_scale = 3;
-    char distance;
-    char distance_scale = 3;
+Neuro_Filler_Item filler_item;
+
+
+struct Neuro_Image_Item
+{
+    char is_neuro_item = 1; // 神经元属性10～19
+    char item_is_image = 1;
+    char logic = 1; // 0不存在，1存在，2为联合属性的除末尾外的前缀属性
+    char related_scale; // 相对尺度，正数为当前尺度偏对方大 负数为当前尺度偏对方小 1为使用尺度相同
+
+    char direction; // 方向区间
+    char direction_scale = 3; // 方向覆盖规模 0(无方向性)、1=1、2=3、3=5 向两旁蔓延的幅度
+    char distance; // 距离区间
+    char distance_scale = 3; // 距离覆盖规模 0(无距离性)、1=1、2=3、3=5，原区间+-得到
     
-    ID related_id;
+    ID target_id;
 };
 // 3*4
 
 struct Neuro_Colour_Item
 {
+    char is_neuro_item = 1;
     char item_is_colour;
     char red;
     char green;
@@ -1024,8 +1023,11 @@ struct Neuro_Colour_Item
 };
 
 
-struct Self_Cognition_Item
+struct Self_Inside_Locate_Item
 {
+    char is_neuro_item = 1;
+    char item_is_self_inside_locate;
+
     unsigned char coding_mode = 0;
     unsigned char self_inside_I = 0;
     unsigned char self_inside_II = 0;
@@ -1034,20 +1036,15 @@ struct Self_Cognition_Item
 // 1*4
 
 
-struct Initiative_Observation_Item
-{
-
-    ID target;
-};
 
 
 struct Neuro_Number_Item
 {
     char is_neuro_item = 1;
     char item_is_number = 2;
-    char detail = 0;
-    char logic = 0;
-
+    char logic = 1;
+    char detail = 0; // 作概率统计1、作数量统计2、作数量达标下限3、作数量达标上限4、作数量区间5
+    
     int number_I = 0;
     int number_II = 0;
 };
@@ -1058,15 +1055,13 @@ struct Neuro_Time_Item
 {
     char is_neuro_item = 1;
     char item_is_time = 3;
-    char logic = 0;
+    char logic = 1;
 
     char time_left_range;
-    char time_right_range;
-    char time_scale;
+    char time_right_range; // 时间区域(-4~4)，0是同时，1是从此刻至一规模时间，2是一规模时间至二规模时间，类推
+    char time_scale; // 时间规模，通常是0是无规模(仅模糊方向)，1是0.1秒，2是0.2秒，3是0.3秒，类推
 
-    char effect_kind;
-
-    ID related_id;
+    ID target_id;
 };
 // 3*4
 
@@ -1075,12 +1070,12 @@ struct Neuro_Text_Item
 {
     char is_neuro_item = 1;
     char item_is_text = 4;
-    char logic = 0;
-    char effect_kind;
+    char logic = 1;
+    char effect_kind; // 生成文本1，生成概念2  或 统计字符1，统计字符串2
 
-    char left_distance = 1;
-    char right_distance = 1;
-    unsigned char distance_scale = 4;
+    char left_distance = 1; // 左端作用位置，-8～8
+    char right_distance = 1; // 右端作用位置，-8～8
+    unsigned char distance_scale = 4; // 距离规模
     
     ID target_id;
 };
@@ -1091,7 +1086,7 @@ struct Neuro_Concept_Item
 {
     char is_neuro_item = 1;
     char item_is_concept = 5;
-    char logic = 0;
+    char logic = 1;
 
     ID target_id;
 };
@@ -1102,18 +1097,18 @@ struct Neuro_Action_Item
 {
     char is_neuro_item = 1;
     char item_is_action = 6;
-    char logic;
+    char logic = 1;
 
-    char action_kind;
-    unsigned char vk;
-    char mouseData;
+    char action_kind; // 鼠标1，键盘2，文本传回3，文本显示4，窗口隐藏5，窗口显示6
+    unsigned char vk; // 键码
+    char mouseData; // 滚轮
     
     char direction;
     char distance;
 
     unsigned int dwFlags;
 
-    ID locate_id;
+    ID target_id;
 };
 // 4*4
 
@@ -1121,14 +1116,14 @@ struct Neuro_Action_Item
 struct Neuro_Belief_Item
 {
     char is_neuro_item = 1;
-    char item_is_belief = 7; // 
-    char detail_kind;
-    char logic;
+    char item_is_belief = 7;
+    char detail_kind; //  等同对应1，产生2，信息3，属于4
+    char logic = 1;
 
     int u_value = 0;
     int l_value = 0; 
     
-    ID belief_object_id;
+    ID target_id;
 };
 //4*4
 
@@ -1137,82 +1132,60 @@ struct Neuro_Manner_Item
 {
     char is_neuro_item = 1;
     char item_is_manner = 8;
-    char manner_kind;
-    char target_kind;
+    char manner_kind; // 注意力需求1 注意力转移2 识别需求3 理解需求4 选择需求5（实现需求）
+    char target_kind; // id1 场景2
     
     int manner_value = 0;
     float manner_rate = 0;
-    ID effect_target;
+    ID target_id;
 };
 //4*4
 
 
-
 struct Neuro_Casual_Restrain_Item
 {
+    char is_neuro_item = 1;
+    char item_is_restrain = 9;
+
     ID Restrain_Target;
-    
-};
 
-Neuro_Image_Item filler_condition;
-Neuro_Image_Item filler_result;
-
-
-union Neuro_Link_Attribute
-{
-    Neuro_Image_Item image_attribute;
-    Neuro_Number_Item number_attribute;
-    Neuro_Time_Item time_attribute;
-    Neuro_Text_Item text_attribute;
-    Neuro_Concept_Item concept_attribute;
-    Neuro_Action_Item action_attribute;
-    Neuro_Belief_Item belief_attribute;
-    Neuro_Manner_Item manner_attribute;
+    float Restrain_Rate;
 };
 
 
-union General_Condition
+
+union Neuro_Union_Attribute
 {
-    Neuro_Image_Item image_condition;
-    Neuro_Number_Item number_condition;
-    Neuro_Time_Item time_condition;
-    Neuro_Text_Item text_condition;
-    Neuro_Concept_Item concept_condition;
-    Neuro_Action_Item action_conditon;
+    Attribute_Head_Item head_item;
+    Neuro_Filler_Item filler_item;
+
+    Neuro_Image_Item image_item;
+    Neuro_Number_Item number_item;
+    Neuro_Time_Item time_item;
+    Neuro_Text_Item text_item;
+    Neuro_Concept_Item concept_item;
+    Neuro_Action_Item action_item;
+    Neuro_Belief_Item belief_item;
+    Neuro_Manner_Item manner_item;
 };
 
+Neuro_Union_Attribute filler_neuro_union = {.filler_item = filler_item};
 
-union General_Result
+
+
+
+char every_item_size[9] = {1, 3, 3, 3, 3, 2, 4, 4, 4};
+
+
+inline void return_item_kind_and_size(int*& ptr, char& item_kind, char& item_size)
 {
-    Neuro_Image_Item image_result;
-    Neuro_Number_Item number_result;
-    Neuro_Time_Item time_result;
-    Neuro_Text_Item text_result;
-    Neuro_Concept_Item concept_result;
-    Neuro_Belief_Item belief_result;
-    Neuro_Manner_Item manner_result;
-};
+    ptr += item_size;
+    item_kind = *(char*)(ptr);
+    item_size = every_item_size[item_kind];
+}
 
 
-struct General_Flow_Attribute
-{
-    //
-    unsigned char attritube_kind;
-    unsigned char update_kind = 0;
-    unsigned char number_of_condition_and_result;
-    unsigned char non;
-    
-    int active_stat_num;
-    int realize_detect_num;
-
-    //
-    General_Condition condition[4];
-    General_Result result[4];
-    //
-
-}; //(4~36)*4
-
-struct Attribute_Head_Item
+struct Attribute_Head
 {
     char attribute_kind;
     char able_update = 0;
@@ -1221,30 +1194,21 @@ struct Attribute_Head_Item
 
     char result_num = 0;
 
-    char item_num;
+    char item_num = 4;
+
+    int stat_num = 0;
+    int releize_num = 0;
 };
+//
 
-char every_item_size[8] = {3, 3, 3, 3, 2, 4, 4, 4};
-
-
-
-void return_item_kind_and_size(int*& ptr, char& item_kind, char& item_size)
-{
-    ptr += item_size;
-    item_kind = *(char*)(ptr);
-    item_size = every_item_size[item_kind];
-}
-
-
-
-Attribute_Head_Item attribute_head_read(int *ptr)
+Attribute_Head attribute_head_read(int *ptr)
 {
     char one = *(char *)ptr;
     char two = *((char *)ptr + 1);
     char three = *((char *)ptr + 2);
     char four = *((char *)ptr + 3);
 
-    Attribute_Head_Item return_item;
+    Attribute_Head return_item;
 
     return_item.attribute_kind = one;
     return_item.able_update = two;
@@ -1256,7 +1220,7 @@ Attribute_Head_Item attribute_head_read(int *ptr)
 }
 
 
-void attribute_head_write(Attribute_Head_Item attribute_head, vector<int>& target_list)
+void attribute_head_write(Attribute_Head attribute_head, vector<int>& target_list)
 {
     int *ptr = target_list.data();
 
@@ -1277,162 +1241,92 @@ void attribute_head_write(Attribute_Head_Item attribute_head, vector<int>& targe
     *((char *)ptr + 2) = three;
     *((char *)ptr + 3) = four;
 
+    *(ptr + 1) = attribute_head.stat_num;
+    *(ptr + 2) = attribute_head.releize_num;
+
 }
 
 
 void general_attribute_put(
-    Attribute_Head_Item attribute_head, vector<int>& target_context_list,
-    vector<General_Condition>& general_condition_list, vector<General_Result>& general_result_list)
+    Attribute_Head attribute_head, vector<int>& target_context_list,
+    vector<Neuro_Union_Attribute>& general_result_condition_list)
 {
+    target_context_list.resize(4 + general_result_condition_list.size()*4);
     attribute_head_write(attribute_head, target_context_list);
     
-    char condition_kind;
-    char result_kind;
+    char attribute_num = general_result_condition_list.size();
 
-    char condition_num = general_condition_list.size();
-    char result_num = general_result_list.size();
 
     int* ptr = target_context_list.data();
-    *(ptr + 1) = 0; 
+    *(ptr + 1) = 0;
     *(ptr + 2) = 0;
     ptr += 3;
 
-    switch(condition_kind)
+    for(int a = 0; a < attribute_num; a++)
     {
-        case 1:
+        Neuro_Union_Attribute neu_att = general_result_condition_list[a];
+        
+        switch(neu_att.action_item.item_is_action)
         {
-            for(int a = 0; a < condition_num; a++)
+            case 1:
             {
-                general_condition_list[a].image_condition;
-
-                ptr += 3;
+                *(Neuro_Image_Item*)(ptr) = general_result_condition_list[a].image_item;
+                
+                ptr += every_item_size[1];
             }
-        }
-        break;
-        case 2:
-        {
-            for(int a = 0; a < condition_num; a++)
+            break;
+            case 2:
             {
-                general_condition_list[a].number_condition;
+                *(Neuro_Number_Item*)(ptr) = general_result_condition_list[a].number_item;
 
-                ptr += 3;
+                ptr += every_item_size[2];
             }
-        }
-        break;
-        case 3:
-        {
-            for(int a = 0; a < condition_num; a++)
+            break;
+            case 3:
             {
-                general_condition_list[a].time_condition;
+                *(Neuro_Time_Item*)(ptr) = general_result_condition_list[a].time_item;
 
-                ptr += 3;
+                ptr += every_item_size[3];
             }
-        }
-        break;
-        case 4:
-        {
-            for(int a = 0; a < condition_num; a++)
+            break;
+            case 4:
             {
-                general_condition_list[a].text_condition;
+                *(Neuro_Text_Item*)(ptr) = general_result_condition_list[a].text_item;
 
-                ptr += 3;
+                ptr += every_item_size[4];
             }
-        }
-        break;
-        case 5:
-        {
-            for(int a = 0; a < condition_num; a++)
+            break;
+            case 5:
             {
-                general_condition_list[a].concept_condition;
+                *(Neuro_Concept_Item*)(ptr) = general_result_condition_list[a].concept_item;
 
-                ptr += 2;
+                ptr += every_item_size[5];
             }
-        }
-        break;
-        case 6:
-        {
-            for(int a = 0; a < condition_num; a++)
+            break;
+            case 6:
             {
-                general_condition_list[a].action_conditon;
+                *(Neuro_Action_Item*)(ptr) = general_result_condition_list[a].action_item;
 
-                ptr += 4;
+                ptr += every_item_size[6];
             }
-        }
-        break;
-    }
-
-    switch(result_kind)
-    {
-        case 1:
-        {
-            for(int b = 0; b < result_num; b++)
+            break;
+            case 7:
             {
-                general_result_list[b].image_result;
+                *(Neuro_Belief_Item*)(ptr) = general_result_condition_list[a].belief_item;
 
-                ptr += 3;
+                ptr += every_item_size[7];
             }
-        }
-        break;
-        case 2:
-        {
-            for(int b = 0; b < result_num; b++)
+            break;
+            case 8:
             {
-                general_result_list[b].number_result;
-
-                ptr += 3;
-            }
-        }
-        break;
-        case 3:
-        {
-            for(int b = 0; b < result_num; b++)
-            {
-                general_result_list[b].time_result;
-
-                ptr += 3;
-            }
-        }
-        break;
-        case 4:
-        {
-            for(int b = 0; b < result_num; b++)
-            {
-                general_result_list[b].text_result;
-
-                ptr += 3;
-            }
-        }
-        break;
-        case 5:
-        {
-            for(int b = 0; b < condition_num; b++)
-            {
-                general_result_list[b].concept_result;
-
-                ptr += 2;
-            }
-        }
-        break;
-        case 6:
-        {
-            for(int b = 0; b < condition_num; b++)
-            {
-                general_result_list[b].belief_result;
-
-                ptr += 4;
-            }
-        }
-        break;
-        case 7:
-        {
-            for(int b = 0; b < condition_num; b++)
-            {
-                general_result_list[b].manner_result;
+                *(Neuro_Manner_Item*)(ptr) = general_result_condition_list[a].manner_item;
     
-                ptr += 4;
+                ptr += every_item_size[8];
             }
         }
     }
+
+
 
 }
 
@@ -1447,7 +1341,8 @@ struct Passive_Link_Attribute
 // 2*4
 
 //
-void passive_link_put(Passive_Link_Attribute passive_link_attritube, 
+void passive_link_put(
+    Passive_Link_Attribute passive_link_attritube, 
     vector<int>& target_list)
 {
     target_list.resize(2);
@@ -1458,25 +1353,32 @@ void passive_link_put(Passive_Link_Attribute passive_link_attritube,
 }
 
 
-unordered_set<ID> waiting_modify_neuro_search;
-deque<ID> waiting_modify_neuro;
-deque<vector<int>> waiting_modify_context;
-
-
-void modify_neuro_queue_load(ID target, vector<int> context)
+struct modify_context
 {
-    if (waiting_modify_neuro_search.count(target) == 1)
+    ID target;
+    vector<int> item_context;
+    unsigned short position;
+    bool add_or_insert;
+};
+
+
+unordered_set<ID> Waiting_Modify_Neuro_Set;
+deque<modify_context> Waiting_Modify_Neuro_List;
+
+
+void modify_neuro_queue_load(modify_context context)
+{
+    if (Waiting_Modify_Neuro_Set.count(context.target) == 1)
     {
 
     } else {
-        waiting_modify_neuro.push_back(target);
-        waiting_modify_context.push_back(context);
-        waiting_modify_neuro_search.insert(target);
+        Waiting_Modify_Neuro_List.push_back(context);
+        Waiting_Modify_Neuro_Set.insert(context.target);
     }
 }
 
 
-ID new_neuro_create(char neuro_kind/* 1 2 3 */, Neuro_Desc neuro_desc)
+ID new_neuro_create(char neuro_kind/* 1 2 3 4 */, Neuro_Desc neuro_desc)
 {
     ID node_id;
 
@@ -1485,9 +1387,9 @@ ID new_neuro_create(char neuro_kind/* 1 2 3 */, Neuro_Desc neuro_desc)
         FREE_ID_NUM--;
         node_id = FREE_ID_LIST.back();
         FREE_ID_LIST.pop_back();
-    }
-    else
-    {
+
+    } else {
+
         node_id = NEWIST_USEFUL_ID;
         NEWIST_USEFUL_ID += 1;
     }
@@ -1509,10 +1411,15 @@ ID new_neuro_create(char neuro_kind/* 1 2 3 */, Neuro_Desc neuro_desc)
         
     } else if(neuro_kind == 2) {
         
+        Neuro_Time_Desc desc = neuro_desc.time_desc;
+        *(Neuro_Time_Desc*)ptr = desc;
+
+    } else if(neuro_kind == 3) {
+        
         Neuro_Text_Desc desc = neuro_desc.text_desc;
         *(Neuro_Text_Desc*)ptr = desc;
 
-    } else if(neuro_kind == 3) {
+    } else if(neuro_kind == 4) {
         
         Neuro_Concept_Desc desc = neuro_desc.concept_desc;
         *(Neuro_Concept_Desc*)ptr = desc;
@@ -1530,7 +1437,7 @@ void neuro_delete(ID node_id)
 }
 
 
-char neuro_size_up(unsigned int target_id, unsigned char level)
+char neuro_size_up(ID target_id, unsigned char level)
 {
 
     
@@ -1571,7 +1478,6 @@ char neuro_size_up(unsigned int target_id, unsigned char level)
 char neuro_item_delete(ID target,
     unsigned short item_order, unsigned char delete_num)
 {
-    
     INDEX vec_pos = pack_index_find(target);
 
     if (vec_pos == -1)
@@ -1619,19 +1525,22 @@ char neuro_attribute_write(
     ID target_ID, vector<int> item_context,
     unsigned short position, bool add_or_insert)
 {
-    
     int* ptr = node_find(target_ID);
 
     if (ptr == 0)
     {
         add_to_Will_Read_Neuro_Queue(target_ID);
 
-        modify_neuro_queue_load(target_ID, item_context);
+        modify_context context;
+        context.target = target_ID;
+        context.item_context = item_context;
+
+        modify_neuro_queue_load( context );
         return 0;
     }
 
     int *first_ptr = ptr;
-    char *pack_state = ((char *)(first_ptr - 15) + 1);
+    char *pack_state = ((char *)(first_ptr) + 1);
 
     if (*pack_state != 2)
         return 0;
@@ -1642,26 +1551,15 @@ char neuro_attribute_write(
 
     int item_context_size = item_context.size();
 
-    if ((pack_size * 256 - 16 - used_item_num) > item_context_size)
-    {
-        vector<int> context;
-        modify_neuro_queue_load(target_ID, context);
-        return 0;
-    }
-
     *((short *)first_ptr + 1) += item_context_size;
 
     char curr_pack_order = 0;
 
     unsigned short curr_order;
 
-    bool have_more_pack = 0;
+    ptr += 15;
 
-    if (pack_size > 1)
-        have_more_pack = 1;
-    
-
-    if (add_or_insert == 1)
+    if (add_or_insert == 0)
     {
         ptr += used_item_num;
 
@@ -1670,28 +1568,22 @@ char neuro_attribute_write(
             *ptr = single_item;
         }
 
-    } else if (add_or_insert == 2) {
+    } else if (add_or_insert == 1) {
 
         char pack_size = *((char *)first_ptr + 1);
         unsigned short used_item_num = *((short *)first_ptr + 1);
 
         int insert_pos = position;
 
-        int *write_ptr;
-        int *end_ptr;
+        int *write_ptr = first_ptr + used_item_num;
+        int *end_ptr = first_ptr + used_item_num + item_context_size;
         int middle_item_num = used_item_num - insert_pos;
 
-        if (have_more_pack == 0)
+        for (int q = 0; q < middle_item_num; q++)
         {
-            write_ptr = first_ptr + used_item_num;
-            end_ptr = first_ptr + used_item_num + item_context_size;
-
-            for (int q = 0; q < middle_item_num; q++)
-            {
-                *end_ptr = *write_ptr;
-                end_ptr--;
-                write_ptr--;
-            }
+            *end_ptr = *write_ptr;
+            end_ptr--;
+            write_ptr--;
         }
 
         ptr = first_ptr + insert_pos;
@@ -1710,10 +1602,8 @@ char neuro_attribute_write(
 }
 
 
-inline void Simple_Neuro_Attribute_write(ID target_id, 
-    unsigned short position, bool add_or_insert,
-    Attribute_Head_Item attribute_head, 
-    vector<General_Condition>& general_condition_list, vector<General_Result>& general_result_list)
+inline void Simple_Neuro_Attribute_write(ID target_id, unsigned short position, bool add_or_insert,
+    Attribute_Head attribute_head, vector<Neuro_Union_Attribute>& general_result_condition_list)
 {
     vector<int> add_item;
     vector<int> passive_item;
@@ -1722,11 +1612,16 @@ inline void Simple_Neuro_Attribute_write(ID target_id,
     passive_link_attribute.link_attribute_kind = attribute_head.attribute_kind;
     passive_link_attribute.target_id = target_id;
 
-    general_attribute_put(attribute_head, add_item, general_condition_list, general_result_list);
+    general_attribute_put(attribute_head, add_item, general_result_condition_list);
     passive_link_put(passive_link_attribute, passive_item);
 
     neuro_attribute_write(target_id, add_item, 0, 1);
-    neuro_attribute_write(general_result_list[0].image_result.related_id, passive_item, 0, 1);
+
+    for(int a = 0; a < general_result_condition_list.size(); a++)
+    {
+        neuro_attribute_write(general_result_condition_list[a].image_item.target_id, passive_item, 0, 1);
+    }
+    
 }
 
 
@@ -1793,7 +1688,8 @@ struct VectorUint32_tEq
 };
 
 
-struct Value_Sort_Unit {
+struct Value_Sort_Unit 
+{
     INDEX higher_one = 0; // >
     INDEX lower_one = 0; // <=
     int value = 0;
@@ -1802,14 +1698,15 @@ struct Value_Sort_Unit {
 
 Value_Sort_Unit value_sort_unit_a;
 
-
 class Advanced_Value_Sort
 {
     private:
     int check_gap = 0;
     int change_number = 0;
+
     vector<Value_Sort_Unit> fast_check_list = {value_sort_unit_a};
     vector<INDEX> free_idx;
+    
     public:
     vector<Value_Sort_Unit> list = {value_sort_unit_a};
     private:
@@ -1871,7 +1768,7 @@ class Advanced_Value_Sort
         list[insert_position].higher_one = upper_one;
         list[insert_position].lower_one = lower_one;
 
-        change_number += 1;
+        change_number++;
 
         if(change_number > 2*(check_gap + 1) )
             reset_enter();
@@ -1895,7 +1792,7 @@ class Advanced_Value_Sort
             fast_check_list;
         }
 
-        change_number -= 1;
+        change_number--;
 
         if(change_number < -2*(check_gap - 1) )
             reset_enter();
@@ -1926,10 +1823,10 @@ class Advanced_Value_Sort
     //5
     void reset_enter()
     {
-        int ture_numder = list.size() - free_idx.size();
-
-        if( ture_numder >= (check_gap+1)*(check_gap+1) )
+        if( change_number >= (check_gap+1)*2 )
         {
+            int ture_number = list.size() - free_idx.size();
+
             int old_enter_gap = check_gap;
 
             check_gap += 1;
@@ -1940,7 +1837,6 @@ class Advanced_Value_Sort
 
             int write_idx = 2;
 
-            //1〄1�71ￄ1�77
             for( ; write_idx < fast_check_list.size(); write_idx++)
             {
                 for(int w = 0 ; w < check_gap; w++)
@@ -1954,7 +1850,7 @@ class Advanced_Value_Sort
 
             int number_of_this_unit = 0;
 
-            while( current_No < ture_numder )
+            while( current_No < ture_number )
             {   
                 for(int q = 0; q < check_gap; q++)
                 {
@@ -1973,7 +1869,9 @@ class Advanced_Value_Sort
                 }
             }
 
-        } else if (ture_numder <= (check_gap-1)*(check_gap-1) ) {
+        } else if (change_number <= 2*(check_gap-1) ) {
+
+            int ture_number = list.size() - free_idx.size();
 
             int old_enter_gap = check_gap;
 
@@ -1987,7 +1885,7 @@ class Advanced_Value_Sort
 
             int number_of_this_unit = 0;
 
-            for( ; write_idx < fast_check_list.size() && current_No < ture_numder; write_idx++)
+            for( ; write_idx < fast_check_list.size() && current_No < ture_number; write_idx++)
             {
                 for(int w = 0 ; w < check_gap; w++)
                 {
@@ -2014,17 +1912,11 @@ class Advanced_Value_Sort
 };
 
 
-struct Node_Filler_Attribute
-{
-    char curr_is_use = 0;
-};
 
-Node_Filler_Attribute filler_attribute;
-
-struct Node_Image_Attribute
+struct Node_Image_Single_Attribute
 {
-    char is_node_attribute = 2;
-    char kind_is_Node_Image_Attribute = 1;
+    char is_node_attribute = 2; //点自身属性2、点所需特征3
+    char self_is_Node_Image_Attribute = 1;
     char observe_size;
 
     short x, y;
@@ -2034,10 +1926,23 @@ struct Node_Image_Attribute
 };
 //4*4
 
+struct Node_Image_Continuous_Attribute
+{
+    char is_node_attribute = 2;
+    char self_is_Node_Image_Continuous_Attribute = 1;
+
+    char begin_direction;
+    char end_direction;
+
+    char begin_distance;
+    char end_distance;
+};
+
+
 struct Node_Number_Attribute
 {
     char is_node_attribute = 2;
-    char kind_is_Node_Number_Attribute = 2;
+    char self_is_Node_Number_Attribute = 2;
     char logic; // node_number1 Probability2
     
     int number_I = 0;
@@ -2046,35 +1951,55 @@ struct Node_Number_Attribute
 //3*4
 
 
-struct Node_Time_Attribute
+struct Node_Time_Single_Attribute
 {
     char is_node_attribute = 2;
-    char kind_is_Node_Time_Attribute = 3;
+    char self_is_Node_Time_Attribute = 3;
+    char absolute_or_relative;
 
-    char time_range;
-    char time_scale;
-    char time_logic = 0;
-
-    int front_time = 0;
-    int back_time = 0;
-};
-//4*4
-
-struct Node_Text_Attribute
-{
-    char is_node_attribute = 2;
-    char kind_is_Node_Text_Attribute = 4;
-
-    INDEX idx = 0;
+    int time;
     int block_num = 0;
 };
 //3*4
 
 
-struct Node_Action_Attribute
+struct Node_Time_Continuous_Attribute
 {
     char is_node_attribute = 2;
-    char kind_is_Node_Motion_Attribute = 5;
+    char self_is_Node_Time_Continuous_Attribute = 3;\
+
+    int begin_time;
+    int end_time;
+
+    int block_num = 0;
+};
+
+
+struct Node_Text_Single_Attribute
+{
+    char is_node_attribute = 2;
+    char self_is_Node_Text_Attribute = 4;
+
+    INDEX position = 0;
+    int block_num = 0;
+};
+
+
+struct Node_Text_Continuous_Attribute
+{
+    char is_node_attribute = 2;
+    char self_is_Node_Text_Continuous_Attribute = 4;
+
+    INDEX begin_position = 0;
+    INDEX end_position = 0;
+    int block_num = 0;
+};
+
+
+struct Node_Base_Action_Attribute
+{
+    char is_node_attribute = 2;
+    char self_is_Node_Action_Attribute = 5;
 
     char action_order;
     char action_kind;
@@ -2090,17 +2015,193 @@ struct Node_Action_Attribute
 
 struct Link_Node_Attribute
 {
-    char is_node_link = 3;
-    char link_Attribute = 0;
-    char link_Kind = 0;
+    char is_node_link = 4; // 点链接节点4、点链接场域5
+    char link_Kind; // （点-点）下层1 上层2 统计3（点-场）所属
+    char node_link; // 1 2 3 4
     char connect_direction = 0;
     
     uint32_t link_idx_or_id = 0;
-    float link_value = 1;
+    float link_value_I = 1;
     int link_value_II = 0;
 };
 //4*4
 
+
+
+
+struct Scene_Image_Attribute
+{
+    char is_scene_attribute = 6;// 场自身属性6 场所需特征7
+    char self_is_Scene_Image_Attribute = 1;
+    
+    short left, right, bottom, top;
+};
+// 3*4
+
+
+struct Scene_Number_Attribute
+{
+    char is_scene_attribute = 6;
+    char self_is_Scene_Number_Attribute = 2;
+    
+    int u_number;
+    int l_number;
+};
+//3*4
+
+
+struct Scene_Time_Attribute
+{
+    char is_scene_attribute = 6;
+    char self_is_Scene_Time_Attribute = 3;
+    
+    int time;
+
+    int durable_over_time;  
+};
+// 3*4
+
+
+struct Scene_Text_Attribute
+{
+    char is_scene_attribute = 6;
+    char self_is_Scene_Text_Attribute = 4;
+    
+    
+    short left, right;
+};
+// 2*4
+
+
+struct Scene_Action_Attribute
+{
+    char is_scene_attribute = 6;
+    char self_is_Scene_Action_Attribute = 5;
+    char last_or_curr_or_next;
+
+    INDEX action_idx;
+
+};
+//2*4
+
+
+
+struct Link_Scene_Attribute
+{
+    char is_scene_link = 8;//场链接场景8 场链接节点9
+    unsigned char scene_kind;
+    
+    INDEX scene_idx;
+    float related_value;
+};
+// 3*4
+
+
+struct Require_Object
+{
+    char is_require = 10;// 单一需求为10 11为连带需求
+    char require_object_kind; // id 1 scene 2
+    char require_detail_kind; // 自身0 空间属性/区域1 数量属性/区域2 时间属性/区域3 文本属性/区域4
+    char require_kind;
+    /* retrieve识别1* 
+    检索生成构造目的10 解释目标态度属性11 行动连接性探测12
+    */
+    /* model建模2* 
+    文本对象性建模21 
+    */
+    /* construct构造3* ～ 4*
+    构造下级与对应的节点31    排列文本构造需求节点32    构造为图像节点33     外部追求构造34
+    */
+
+    uint32_t require_id_or_idx = 0;
+    int require_value = 0;// 1为神经元id、2为网络节点
+};
+//3*4
+
+union Link_Variable_Attribute
+{
+    Neuro_Filler_Item filler_item;
+
+    Neuro_Image_Item neuro_image_item;
+    Neuro_Number_Item neuro_number_item;
+    Neuro_Time_Item neuro_time_item;
+    Neuro_Text_Item neuro_text_item;
+    Neuro_Concept_Item neuro_concept_item;
+    Neuro_Action_Item neuro_action_item;
+
+    Neuro_Belief_Item neuro_belief_item;
+    Neuro_Manner_Item neuro_manner_item;
+
+
+    Node_Image_Single_Attribute node_image_single_attribute;
+    Node_Image_Continuous_Attribute node_image_continuous_attribute;
+    Node_Time_Single_Attribute node_time_single_attribute;
+    Node_Time_Continuous_Attribute node_time_continuous_attribute;
+    Node_Text_Continuous_Attribute node_text_continuous_attribute;
+    Node_Text_Single_Attribute node_text_single_attribute;
+    Node_Number_Attribute node_number_attribute;
+    Node_Base_Action_Attribute node_action_attribute;
+
+    Link_Node_Attribute link_node_attribute;
+
+
+    Scene_Image_Attribute scene_image_attribute;
+    Scene_Number_Attribute scene_number_attribute;
+    Scene_Time_Attribute scene_time_attribute;
+    Scene_Text_Attribute scene_text_attribute;
+    Scene_Action_Attribute scene_action_attribute;
+
+    Link_Scene_Attribute link_scene_attribute;
+
+
+    Require_Object require_object;
+};
+
+
+Link_Variable_Attribute filler_variable_attribute = {.filler_item = filler_item};
+
+struct General_Node
+{
+    bool is_use = 1;
+    char exist_type; // 实际有id 实际无id 模拟已归类 模拟未归类
+    char node_kind; // 存在 不存在 
+    char belong_scene_kind = 0; //一般，图像，时间，文本
+
+    char node_layer;
+    char rough_neuro_spare_size = -1;
+    char node_calu_state = 1;
+    
+    char space_stable_num;
+    char time_stable_num;
+
+    char was_retrieve_generate = 0;
+    char was_simulate_generate = 0;
+    char probability_num;
+
+    int node_attention = 0;
+    ID self_id = 0;
+    INDEX belong_scene = 0;
+
+    int component = 0;
+
+    float complete_or_probability = 1;
+    int u_value = 0;
+    int l_value = 0;
+
+    float space_predict_stability = 0;
+    float time_predict_stability = 0;
+
+    int retrirve_require = 0;
+    int model_require = 0;
+    int construct_require = 0;
+    int identify_require = 0;
+
+    int total_require = 0;
+    int total_derive_require = 0;
+
+    Link_Variable_Attribute self_attribute[3] = {filler_variable_attribute, filler_variable_attribute, filler_variable_attribute};
+    vector<Link_Variable_Attribute> Node_variable_attribute_list;
+};
 
 
 struct Focus_Object
@@ -2120,7 +2221,7 @@ struct Wait_Added_Record
     
     ID neuro_id;
 
-    Neuro_Link_Attribute record_item;
+    Neuro_Union_Attribute record_item;
 };
 
 
@@ -2135,186 +2236,17 @@ struct Match_Generate
 {
     char curr_is_use = 1;
     char attritube_kind;
-    char need_condition_num;
-    char result_num;
+    char need_condition_num = 0;
+    char result_num = 0;
     char node_num = 0;
 
+    char feed_back_type; // 匹配 需求
+
+    INDEX match_idx = 0;
     INDEX node_idx_from[5];
-    General_Condition match_condition[4] = {filler_condition, filler_condition, filler_condition, filler_condition};
+    Neuro_Union_Attribute match_condition[4] = {filler_neuro_union, filler_neuro_union, filler_neuro_union, filler_neuro_union};
     
-    General_Result match_result[4] = {filler_result, filler_result, filler_result ,filler_result};
-};
-
-
-struct Casual_Restrain
-{
-    INDEX Restrain_Source;
-    ID Restrain_Target;
-
-    float Restrain_Rate;
-};
-
-
-struct Require_Object
-{
-    char is_require = 4;
-    char require_object_kind;
-    char require_detail_kind;
-    char require_kind;
-
-    uint32_t require_id_or_idx;
-    int require_value = 0;
-};
-//3*4
-
-
-struct Scene_Image_Attribute
-{
-    char is_scene_attribute = 5;
-    char Self_Scene_Attribute_Is_Image = 1;
-    char related_kind = 2;
-    
-    short left, right, bottom, top;
-};
-// 3*4
-
-
-struct Scene_Number_Attribute
-{
-    char is_scene_attribute = 5;
-    char Self_Scene_Attribute_Is_Number = 2;
-    char related_kind = 2;
-    
-
-    int u_number;
-    int l_number;
-};
-//3*4
-
-
-struct Scene_Time_Attribute
-{
-    char is_scene_attribute = 5;
-    char Self_Scene_Attribute_Is_Time = 3;
-    char related_kind = 2;
-    
-    int begin_time_front;
-    int begin_time_end;
-
-    int durable_over_time;
-};
-// 4*4
-
-
-struct Scene_Text_Attribute
-{
-    char is_scene_attribute = 5;
-    char Self_Scene_Attribute_Is_Text = 4;
-    char related_kind = 2;
-    
-    short left, right;
-};
-// 2*4
-
-
-struct Scene_Action_Attribute
-{
-    char is_scene_attribute = 5;
-    char Self_Scene_Attribute_Is_Motion = 5;
-    char related_kind = 2;
-    char last_or_curr;
-
-    INDEX action_idx;
-
-    int time_front;
-    int time_end;
-};
-//4*4
-
-
-
-struct Link_Scene_Attribute
-{
-    char is_scene_link = 6;
-    unsigned char scene_kind;
-    char related_kind;
-
-    INDEX scene_idx;
-    float related_value;
-};
-// 3*4
-
-
-union Variable_Attribute
-{
-    Node_Filler_Attribute filler_attribute;
-
-    Node_Image_Attribute node_image_attribute;
-    Node_Time_Attribute node_time_attribute;
-    Node_Text_Attribute node_text_attribute;
-    Node_Number_Attribute node_number_attribute;
-    Node_Action_Attribute node_action_attribute;
-
-    Link_Node_Attribute link_node_attribute;
-
-    Scene_Image_Attribute scene_image_attribute;
-    Scene_Number_Attribute scene_number_attribute;
-    Scene_Time_Attribute scene_time_attribute;
-    Scene_Text_Attribute scene_text_attribute;
-    Scene_Action_Attribute scene_action_attribute;
-
-    Link_Scene_Attribute link_scene_attribute;
-
-    Require_Object require_object;
-
-    Neuro_Image_Item neuro_image_item;
-    Neuro_Number_Item neuro_number_item;
-    Neuro_Time_Item neuro_time_item;
-    Neuro_Text_Item neuro_text_item;
-    
-    // Neuro_Concept_Item neuro_concept_item;
-    // Neuro_Action_Item neuro_action_item;
-    // Neuro_Belief_Item neuro_belief_item;
-    // Neuro_Manner_Item neuro_manner_item;
-};
-
-
-struct General_Node
-{
-    bool is_use = 1;
-    char now_occupy = 0;
-    char node_kind;
-    char belong_scene_kind = 0;
-
-    unsigned char node_layer;
-    unsigned char neuro_spare_size;
-    char node_calu_state = 1;
-    char space_stability_num;
-    char time_stability_num;
-
-    char was_active = 0;
-
-    int node_attention = 0;
-    ID self_id = 0;
-    INDEX belong_scene = 0;
-
-    int component = 0;
-
-    float complete_or_probability = 1;
-    int u_value = 0;
-    int l_value = 0;
-
-    float space_predict_stability = 0;
-    float time_predict_stability = 0;
-
-    int retrirve_require = 0;
-    int model_require = 0;
-    int construct_require = 0;
-
-    int identify_require = 0;
-
-    Variable_Attribute self_attribute[3] = {filler_attribute, filler_attribute, filler_attribute};
-    vector<Variable_Attribute> Node_variable_attribute_list;
+    Neuro_Union_Attribute match_result[4] = {filler_neuro_union, filler_neuro_union, filler_neuro_union, filler_neuro_union};
 };
 
 
@@ -2328,6 +2260,7 @@ struct General_Scene
 
     int scene_attention = 0;
 
+    int sum_require_value = 0;
     int retrieve_require = 0;
     int model_require = 0;
     int construct_require = 0;
@@ -2346,7 +2279,7 @@ struct General_Scene
 
     vector<INDEX> Overall_general_node_list;
     vector<INDEX> Free_overall_general_node_idx;
-    unordered_map<ID, vector<INDEX>> Id_find_overall_node;
+    unordered_map<ID, vector<INDEX> > Id_find_overall_node;
 
     vector<General_Node> Local_general_node_list;
     vector<INDEX> Free_local_general_node_idx;
@@ -2354,10 +2287,10 @@ struct General_Scene
 
     unordered_map<ID, vector<Focus_Object> > Id_find_focus_object;
 
-    vector<Match_Generate> Generate_match_list;
-    vector<INDEX> Free_generate_match_idx;
+    vector<Match_Generate> Match_generate_list;
+    vector<INDEX> Free_match_generate_index;
 
-    vector<Variable_Attribute> Require_object_list;
+    vector<Link_Variable_Attribute> Require_object_list;
     vector< atomic<char> > Occupy_single_require_object_list;
     vector<INDEX> Free_require_object_idx;
     Advanced_Value_Sort Require_object_sort;
@@ -2366,14 +2299,8 @@ struct General_Scene
 
     unordered_set< vector<ID>, VectorUint32_tHash, VectorUint32_tEq > Node_combo_find_repeat;
     
-    Variable_Attribute self_scene_attribute[3] = {filler_attribute, filler_attribute, filler_attribute};
-    vector<Variable_Attribute> Scene_variable_attribute_List;
-
-    unordered_map<long long , INDEX> Info_to_scene;
-
-    unordered_map< long long, INDEX > every_4_time_event;
-    unordered_map< long long, INDEX > every_16_time_event;
-    unordered_map< long long, INDEX > every_64_time_event;
+    Link_Variable_Attribute self_scene_attribute[3] = {filler_variable_attribute, filler_variable_attribute, filler_variable_attribute};
+    vector<Link_Variable_Attribute> Scene_variable_attribute_List;
 };
 
 
@@ -2387,7 +2314,7 @@ struct Model_Output_Action
     short x, y;
     
     unsigned int dwFlags;
-};
+};//3*4
 
 
 
@@ -2451,11 +2378,10 @@ struct Image_Colour_Block
 
 struct Image_Rough_Map
 {
-    char nave_init = 0;
+    char have_init = 0;
     char rough_size;
     
     short rough_width, rough_height;
-
     
     vector<int> colour_number_distribution; // 8*8*8 = 512num
     vector<int> colour_x_distribution; // 512num
@@ -2474,23 +2400,26 @@ struct Image_Rough_Map
 };
 
 
-struct Rigion_Value_Stat
+struct Space_Form_Node_Record_Map
 {
-    unsigned short height;
-    unsigned short width;
-    unsigned short height_unit_size;
-    unsigned short width_unit_size;
-
-    vector<int> value_unit_list;
+    char record_distance = 4;
+    short max_block_permit;
+    short min_block_permit;
+    vector< vector<INDEX> > record_list;
 };
 
+struct Time_Form_Node_Record_Map
+{
+    char record_distance = 4;
+    int first_front_locate_time;
+    vector< vector<INDEX> > Front_record_list;
+    vector< vector<INDEX> > Back_record_list;
+};
 
 struct Image_Scene
 {
     char curr_use = 1;
     char have_init = 0;
-    char is_lock_occupy = 0;
-    char model_output_action_num = 0;
 
     short width, height;
     
@@ -2500,6 +2429,7 @@ struct Image_Scene
     int attention = 0;
     int sum_nature_attention = 0;
 
+    int sum_require_value = 0;
     int sum_retrieve_require = 0;
     int sum_model_space_require = 0;
     int sum_model_time_require = 0;
@@ -2509,24 +2439,20 @@ struct Image_Scene
     float model_space_add_rate = 0.5;
     float model_time_add_rate = 0.5;
     float construct_add_rate = 0;
+    
+    char action_node_num = 0;
+    INDEX Action_Node_Idx[5] = {0, 0, 0, 0, 0};
 
     int image_node_num = 0;
 
-    Model_Output_Action Current_output_action[5];
-
-    INDEX Action_Node_Idx[5] = {0, 0, 0, 0, 0};
-
-    long long input_time;
+    int input_time;
 
     vector<RGB_Unit> RGB_Map;
-
 
     char Image_rough_view_number = 0;
     Image_Rough_Map Image_rough_view[4];
 
-    vector<Rigion_Value_Stat> Block_attention_list;
-
-    char require_distance = 1;
+    char require_distance = 8;
 
     int total_retrieve_require_valve = 0;
     vector< vector<int> > Retrieve_total_require_list;
@@ -2548,16 +2474,15 @@ struct Image_Scene
     vector<INDEX> Free_local_image_node_idx;
     unordered_map<ID, vector<INDEX> > Id_find_local_node;
 
-    char record_distance = 1;
-    vector< vector<INDEX> > Node_space_form_record_list;
+    Space_Form_Node_Record_Map Space_form_record[5];
 
     unordered_map<ID, vector<Focus_Object> > Id_find_focus_object;
 
     vector<Match_Generate> Match_generate_list;
     vector<INDEX> Free_match_generate_index;
-    unordered_map<ID, vector<INDEX>> Id_find_image_match;
+    unordered_map<ID, vector<INDEX>> Id_find_match_generate;
 
-    vector<Variable_Attribute> Require_object_list;
+    vector<Link_Variable_Attribute> Require_object_list;
     vector< atomic<char> > Occupy_single_require_object_list;
     vector<INDEX> Free_require_idx;
     Advanced_Value_Sort Require_object_sort;
@@ -2566,8 +2491,8 @@ struct Image_Scene
 
     unordered_set<vector<ID>, VectorUint32_tHash, VectorUint32_tEq> Node_combo_find_repeat;
 
-    Variable_Attribute self_scene_attribute[3] = {filler_attribute, filler_attribute, filler_attribute};
-    vector<Variable_Attribute> Scene_variable_attribute_List;
+    Link_Variable_Attribute self_scene_attribute[3] = {filler_variable_attribute, filler_variable_attribute, filler_variable_attribute};
+    vector<Link_Variable_Attribute> Scene_variable_attribute_List;
 };
 
 
@@ -2578,14 +2503,15 @@ struct Time_Scene
     
     int attention = 0;
 
+    int sum_require_value = 0;
     int sum_retrieve_require = 0;
     int sum_model_time_require = 0;
     int sum_construct_require = 0;
 
     int time_node_num = 0;
 
-    long long begin_time;
-    long long end_time;
+    int begin_time;
+    int end_time;
 
     int total_retrieve_require_valve = 0;
     vector< vector<int> > Retrieve_total_require_list;
@@ -2607,9 +2533,7 @@ struct Time_Scene
     vector<INDEX> Free_local_time_node_idx;
     unordered_map<ID, vector<INDEX> > Id_find_local_index;
 
-    vector<long long> Single_record_time_list;
-    vector< vector<INDEX> > Single_node_time_from_record_list;
-    vector<Advanced_Value_Sort> Single_Time_attention_sort;
+    Time_Form_Node_Record_Map Node_time_from_record[5];
 
     unordered_set<vector<ID>, VectorUint32_tHash, VectorUint32_tEq> Node_combo_find_repeat;
 
@@ -2617,9 +2541,9 @@ struct Time_Scene
 
     vector<Match_Generate> Match_generate_list;
     vector<INDEX> Free_match_generate_index;
-    unordered_map<ID, vector<INDEX>> Find_match_generate_need;
+    unordered_map<ID, vector<INDEX>> Id_find_match_generate;
 
-    vector<Variable_Attribute> Require_object_list;
+    vector<Link_Variable_Attribute> Require_object_list;
     vector< atomic<char> > Occupy_single_require_object_list;
     vector<INDEX> Free_require_idx;
     vector< vector<int> > Require_object_weights_map;
@@ -2627,8 +2551,12 @@ struct Time_Scene
     
     Advanced_Value_Sort Attention_object_sort;
 
-    Variable_Attribute self_scene_attribute[3] = {filler_attribute, filler_attribute, filler_attribute};
-    vector<Variable_Attribute> Scene_variable_attribute_List;
+    Link_Variable_Attribute self_scene_attribute[3] = {filler_variable_attribute, filler_variable_attribute, filler_variable_attribute};
+    vector<Link_Variable_Attribute> Scene_variable_attribute_list;
+
+    //?
+    unordered_map<int, INDEX> Time_to_single_time_idx;
+    vector<Advanced_Value_Sort> Single_time_attention_sort;
 };
 
 
@@ -2649,6 +2577,8 @@ struct Text_Scene
     int sum_model_require = 0;
     int sum_identify_require = 0;
     int sum_construct_require = 0;
+
+    int sum_total_require = 0;
 
     int original_text_size = 0;
 
@@ -2672,7 +2602,7 @@ struct Text_Scene
     vector< vector<int> > Construct_total_require_list;
     Advanced_Value_Sort Construct_require_sort;
 
-    vector< vector<INDEX> > Text_node_space_from_record_list;
+    Space_Form_Node_Record_Map Space_form_record[5];
 
     vector< INDEX > Overall_text_node_list;
     vector<INDEX> Free_overall_text_node_idx;
@@ -2687,15 +2617,15 @@ struct Text_Scene
     //
     unordered_map<ID, vector<Focus_Object> > Id_find_focus_list;
 
-    vector<Variable_Attribute> Require_object_list;
+    vector<Link_Variable_Attribute> Require_object_list;
     vector< atomic<char> > Occupy_single_require_object_list;
     vector<int> Require_object_value;
     Advanced_Value_Sort Require_object_sort;
 
     Advanced_Value_Sort Attention_object_list;
 
-    Variable_Attribute self_scene_attribute[3] = {filler_attribute, filler_attribute, filler_attribute};
-    vector<Variable_Attribute> Scene_variable_attribute_List;
+    Link_Variable_Attribute self_scene_attribute[3] = {filler_variable_attribute, filler_variable_attribute, filler_variable_attribute};
+    vector<Link_Variable_Attribute> Scene_variable_attribute_List;
 };
 
 
@@ -2704,26 +2634,52 @@ struct Gtk3_Text_Display
 {
     char use = 1;
     char have_init = 0;
-    char response_aim_kind;
+    char response_aim_kind; // 解释1 回答2 求知3 追求4 对待5 固定6
     
     char input_value_num = 0;
     char input_value_kind;
 
     int input_value_I[4];
+    /*
+    0、工作算力
+    1、外部追求倾向、外部满足程度、外部追求需求、内部理解需求、内部理解程度
+    2、
+    3、
+    4、
+    5、外部追求倾向、内部理解需求、注意力
+    6、外部追求倾向、内部理解程度
+    */
+
 
     char output_value_num = 0;
     char output_value_kind;
     
     int output_value[4];
+    /*
+    1、外部追求倾向、内部理解程度
+    2、
+    3、
+    4、
+    5、
+    6、
+    */
 
     INDEX input_Text_Scene_Idx = 0;
     INDEX output_Text_Scene_Idx = 0;
+
+    int total_require_value = 0;
 
     vector<char> Input_string;
     vector<char> Output_string;
 };
 
 
+/*模型的终极目的
+
+    <1> 尽可能地认知当前世界，低消耗地、准确地、全面地
+    <2> 在1的基础上，符合期望地执行界面输入的内容
+
+*/
 
 
 struct Feedback_Feeling
@@ -2758,7 +2714,7 @@ float Thread_Limit_Free_Rate = 0.3;
 vector<Model_Output_Action> Waiting_Send_Action_List;
 atomic<char> Send_Action_Number(0);
 
-vector<Model_Output_Action> Alreadly_Send_Action_List;
+vector<Model_Output_Action> Alreadly_Finish_Action_List;
 
 vector<char> Send_Text_List;
 atomic<bool> Text_Is_Send(0);
@@ -2775,7 +2731,7 @@ unordered_map< ID, vector<Focus_Object> > Id_Find_Focus_Object;
 vector<Require_Object> Attention_List;
 vector<INDEX> Free_Attention_Inedx;
 
-vector<Variable_Attribute> Require_Object_List;
+vector<Link_Variable_Attribute> Require_Object_List;
 vector<INDEX> Free_Require_Object_Idx;
 atomic<long long> Total_Require_Value;
 
@@ -2789,7 +2745,7 @@ vector<Wait_Added_Record> Wait_Added_Record_List;
 vector<INDEX> Free_Wait_Added_Record_Idx;
 
 
-vector<Variable_Attribute> All_Formal_Require_Object_List;
+vector<Link_Variable_Attribute> All_Formal_Require_Object_List;
 vector< atomic<char> > Occupy_Single_Formal_Require_Object;
 atomic<int> Occupy_Formal_Require_Object_List;
 
@@ -2832,6 +2788,8 @@ atomic<long long> General_Node_Num;
 unordered_map< ID, vector<INDEX> > ID_Find_General_Node;
 
 
+General_Scene OVERALL_THINKING_SCENE;
+
 vector<General_Scene> General_Scene_Storage;
 vector< atomic<char> > Occupy_Single_General_Scene;
 atomic<int> Occupy_General_Scene_Storage(0);
@@ -2839,7 +2797,7 @@ atomic<int> Occupy_General_Scene_Storage(0);
 vector<INDEX> Free_General_Scene_Index;
 atomic<int> Occupy_Free_General_Scene_Index(0);
 
-atomic<int> General_Scene_Num = 1;
+atomic<int> General_Scene_Num = 2;
 
 
 vector<Image_Scene> Image_Scene_Storage;
@@ -2852,7 +2810,7 @@ atomic<int> Occupy_Free_Image_Scene_Index(0);
 atomic<int> Image_Scene_Num = 1;
 
 unordered_map<long long, INDEX> Time_Find_Image_Scene;
-INDEX Newist_Image_Idx = 0;
+INDEX action_execulate_scene = 0;
 
 
 Time_Scene OVERALL_TIME_SCENE;
@@ -3029,7 +2987,7 @@ void write_a_General_Node(INDEX node_idx, General_Node write_context)
         expect = 0;
 
     General_Node& be_write_node = General_Node_Storage[node_idx];
-    write_context.Node_variable_attribute_list = be_write_node.Node_variable_attribute_list; // 可变区的更改容易造成写入冲突，要用下个函数写
+    write_context.Node_variable_attribute_list = be_write_node.Node_variable_attribute_list; // 鍙彉鍖虹殑鏇存敼瀹规槗閫犳垚鍐欏叆鍐茬獊锛岃鐢ㄤ笅涓嚱鏁板啓
     be_write_node = write_context;
 
     expect = 1;
@@ -3038,23 +2996,9 @@ void write_a_General_Node(INDEX node_idx, General_Node write_context)
 }
 
 
-void push_back_a_variable_object_to_General_Node(INDEX node_idx, Variable_Attribute variable_object)
+void create_a_Node_Image_Attribute(INDEX node_idx, Node_Image_Single_Attribute attribute)
 {
-    char expect = 0;
-    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
-        expect = 0;
-
-    General_Node_Storage[node_idx].Node_variable_attribute_list.push_back(variable_object);
-
-    expect = 1;
-    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
-        expect = 1;
-}
-
-
-void create_a_Node_Image_Attribute(INDEX node_idx, Node_Image_Attribute attribute)
-{
-    Variable_Attribute fo = {.node_image_attribute = attribute};
+    Link_Variable_Attribute fo = {.node_image_single_attribute = attribute};
 
     char expect = 0;
     while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
@@ -3075,16 +3019,16 @@ void release_a_Node_Image_Attribute(INDEX node_idx)
         expect = 0;
     
     General_Node& the_node = General_Node_Storage[node_idx];
-    vector<Variable_Attribute>& link_list = the_node.Node_variable_attribute_list;
+    vector<Link_Variable_Attribute>& link_list = the_node.Node_variable_attribute_list;
     int object_size = link_list.size();
 
     for (int q = 0; q < object_size; q++)
     {
-        if (link_list[q].node_image_attribute.is_node_attribute == 2)
+        if (link_list[q].node_image_single_attribute.is_node_attribute == 2)
         {
-            if (link_list[q].node_image_attribute.kind_is_Node_Image_Attribute == 1)
+            if (link_list[q].node_image_single_attribute.self_is_Node_Image_Attribute == 1)
             {
-                link_list[q].node_image_attribute.is_node_attribute = 0;
+                link_list[q].node_image_single_attribute.is_node_attribute = 0;
                 break;
             }
         }
@@ -3095,10 +3039,9 @@ void release_a_Node_Image_Attribute(INDEX node_idx)
         expect = 1;
 }
 
-Node_Image_Attribute read_a_Node_Image_Attribute(INDEX node_idx)
+Node_Image_Single_Attribute read_a_Node_Image_Attribute(INDEX node_idx)
 {
-
-    Node_Image_Attribute attribute;
+    Node_Image_Single_Attribute attribute;
 
     char expect = 0;
     while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
@@ -3108,11 +3051,11 @@ Node_Image_Attribute read_a_Node_Image_Attribute(INDEX node_idx)
 
     for (int q = 0; q < 3; q++)
     {
-        if (the_node.self_attribute[q].node_image_attribute.is_node_attribute == 2)
+        if (the_node.self_attribute[q].node_image_single_attribute.is_node_attribute == 2)
         {
-            if (the_node.self_attribute[q].node_image_attribute.kind_is_Node_Image_Attribute == 1)
+            if (the_node.self_attribute[q].node_image_single_attribute.self_is_Node_Image_Attribute == 1)
             {
-                attribute = the_node.self_attribute[q].node_image_attribute;
+                attribute = the_node.self_attribute[q].node_image_single_attribute;
                 break;
             }
         }
@@ -3125,23 +3068,23 @@ Node_Image_Attribute read_a_Node_Image_Attribute(INDEX node_idx)
     return attribute;
 }
 
-void write_a_Node_Image_Attribute(INDEX node_idx, Node_Image_Attribute write_attribute)
+void write_a_Node_Image_Attribute(INDEX node_idx, Node_Image_Single_Attribute write_attribute)
 {
     char expect = 0;
     while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
         expect = 0;
     
     General_Node& the_node = General_Node_Storage[node_idx];
-    vector<Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
+    vector<Link_Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
     int object_size = link_object_list.size();
 
     for (int q = 0; q < object_size; q++)
     {
-        if (link_object_list[q].node_image_attribute.is_node_attribute == 2)
+        if (link_object_list[q].node_image_single_attribute.is_node_attribute == 2)
         {
-            if (link_object_list[q].node_image_attribute.kind_is_Node_Image_Attribute == 1)
+            if (link_object_list[q].node_image_single_attribute.self_is_Node_Image_Attribute == 1)
             {
-                link_object_list[q].node_image_attribute = write_attribute;
+                link_object_list[q].node_image_single_attribute = write_attribute;
                 break;
             }
         }
@@ -3155,7 +3098,7 @@ void write_a_Node_Image_Attribute(INDEX node_idx, Node_Image_Attribute write_att
 
 void create_a_Node_Number_Attribute(INDEX node_idx, Node_Number_Attribute attribute)
 {
-    Variable_Attribute fo = {.node_number_attribute = attribute};
+    Link_Variable_Attribute fo = {.node_number_attribute = attribute};
 
     char expect = 0;
     while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
@@ -3178,14 +3121,14 @@ void release_a_Node_Number_Attribute(INDEX node_idx)
         expect = 0;
 
     General_Node& the_node = General_Node_Storage[node_idx];
-    vector<Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
+    vector<Link_Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
     int object_size = link_object_list.size();
 
     for (int q = 0; q < object_size; q++)
     {
         if (link_object_list[q].node_number_attribute.is_node_attribute == 2)
         {
-            if (link_object_list[q].node_number_attribute.kind_is_Node_Number_Attribute == 3)
+            if (link_object_list[q].node_number_attribute.self_is_Node_Number_Attribute == 3)
             {
                 link_object_list[q].node_number_attribute.is_node_attribute = 0;
                 break;
@@ -3213,7 +3156,7 @@ Node_Number_Attribute read_a_Node_Number_Attribute(INDEX node_idx)
     {
         if (the_node.self_attribute[q].node_number_attribute.is_node_attribute == 2)
         {
-            if (the_node.self_attribute[q].node_number_attribute.kind_is_Node_Number_Attribute == 3)
+            if (the_node.self_attribute[q].node_number_attribute.self_is_Node_Number_Attribute == 3)
             {
                 attribute = the_node.self_attribute[q].node_number_attribute;
             }
@@ -3235,14 +3178,14 @@ void write_a_Node_Number_Attribute(INDEX node_idx, Node_Number_Attribute write_a
         expect = 0;
     
     General_Node the_node = General_Node_Storage[node_idx];
-    vector<Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
+    vector<Link_Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
     int object_size = link_object_list.size();
 
     for (int q = 0; q < object_size; q++)
     {
         if (link_object_list[q].node_number_attribute.is_node_attribute == 2)
         {
-            if (link_object_list[q].node_number_attribute.kind_is_Node_Number_Attribute == 5)
+            if (link_object_list[q].node_number_attribute.self_is_Node_Number_Attribute == 5)
             {
                 link_object_list[q].node_number_attribute = write_attritube;
                 break;
@@ -3256,9 +3199,9 @@ void write_a_Node_Number_Attribute(INDEX node_idx, Node_Number_Attribute write_a
 }
 
 
-void create_a_Node_Time_Attribute(INDEX node_idx, Node_Time_Attribute attribute)
+void create_a_Node_Time_Attribute(INDEX node_idx, Node_Time_Single_Attribute attribute)
 {
-    Variable_Attribute fo = {.node_time_attribute = attribute};
+    Link_Variable_Attribute fo = {.node_time_single_attribute = attribute};
 
     char expect = 0;
     while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
@@ -3279,16 +3222,16 @@ void release_a_Node_Time_Attribute(INDEX node_idx)
         expect = 0;
     
     General_Node& the_node = General_Node_Storage[node_idx];
-    vector<Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
+    vector<Link_Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
     int object_size = link_object_list.size();
 
     for (int q = 0; q < object_size; q++)
     {
-        if (link_object_list[q].node_time_attribute.is_node_attribute == 2)
+        if (link_object_list[q].node_time_single_attribute.is_node_attribute == 2)
         {
-            if (link_object_list[q].node_time_attribute.kind_is_Node_Time_Attribute == 3)
+            if (link_object_list[q].node_time_single_attribute.self_is_Node_Time_Attribute == 3)
             {
-                link_object_list[q].node_time_attribute.is_node_attribute = 0;
+                link_object_list[q].node_time_single_attribute.is_node_attribute = 0;
                 break;
             }
         }
@@ -3300,9 +3243,9 @@ void release_a_Node_Time_Attribute(INDEX node_idx)
 
 }
 
-Node_Time_Attribute read_a_Node_Time_Attribute(INDEX node_idx)
+Node_Time_Single_Attribute read_a_Node_Time_Attribute(INDEX node_idx)
 {
-    Node_Time_Attribute attribute;
+    Node_Time_Single_Attribute attribute;
 
     char expect = 0;
     while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
@@ -3312,11 +3255,11 @@ Node_Time_Attribute read_a_Node_Time_Attribute(INDEX node_idx)
 
     for (int q = 0; q < 3; q++)
     {
-        if (the_node.self_attribute[q].node_time_attribute.is_node_attribute == 2)
+        if (the_node.self_attribute[q].node_time_single_attribute.is_node_attribute == 2)
         {
-            if (the_node.self_attribute[q].node_time_attribute.kind_is_Node_Time_Attribute == 3)
+            if (the_node.self_attribute[q].node_time_single_attribute.self_is_Node_Time_Attribute == 3)
             {
-                attribute = the_node.self_attribute[q].node_time_attribute;
+                attribute = the_node.self_attribute[q].node_time_single_attribute;
             }
         }
     }
@@ -3328,7 +3271,7 @@ Node_Time_Attribute read_a_Node_Time_Attribute(INDEX node_idx)
     return attribute;
 }
 
-void write_a_Node_Time_Attribute(INDEX node_idx, Node_Text_Attribute write_attritube)
+void write_a_Node_Time_Attribute(INDEX node_idx, Node_Text_Single_Attribute write_attritube)
 {
     char expect = 0;
     while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
@@ -3338,11 +3281,11 @@ void write_a_Node_Time_Attribute(INDEX node_idx, Node_Text_Attribute write_attri
 
     for (int q = 0; q < 3; q++)
     {
-        if (the_node.self_attribute[q].node_text_attribute.is_node_attribute == 2)
+        if (the_node.self_attribute[q].node_text_single_attribute.is_node_attribute == 2)
         {
-            if (the_node.self_attribute[q].node_text_attribute.kind_is_Node_Text_Attribute == 2)
+            if (the_node.self_attribute[q].node_text_single_attribute.self_is_Node_Text_Attribute == 2)
             {
-                the_node.self_attribute[q].node_text_attribute = write_attritube;
+                the_node.self_attribute[q].node_text_single_attribute = write_attritube;
                 break;
             }
         }
@@ -3354,9 +3297,9 @@ void write_a_Node_Time_Attribute(INDEX node_idx, Node_Text_Attribute write_attri
 }
 
 
-void create_a_Node_Text_Attribute(INDEX node_idx, Node_Text_Attribute attribute)
+void create_a_Node_Text_Attribute(INDEX node_idx, Node_Text_Single_Attribute attribute)
 {
-    Variable_Attribute fo = {.node_text_attribute = attribute};
+    Link_Variable_Attribute fo = {.node_text_single_attribute = attribute};
 
     char expect = 0;
     while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
@@ -3377,16 +3320,16 @@ void release_a_Node_Text_Attribute(INDEX node_idx)
         expect = 0;
     
     General_Node& the_node = General_Node_Storage[node_idx];
-    vector<Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
+    vector<Link_Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
     int object_size = link_object_list.size();
 
     for (int q = 0; q < object_size; q++)
     {
-        if (link_object_list[q].node_text_attribute.is_node_attribute == 2)
+        if (link_object_list[q].node_text_single_attribute.is_node_attribute == 2)
         {
-            if (link_object_list[q].node_text_attribute.kind_is_Node_Text_Attribute == 2)
+            if (link_object_list[q].node_text_single_attribute.self_is_Node_Text_Attribute == 2)
             {
-                link_object_list[q].node_text_attribute.is_node_attribute = 0;
+                link_object_list[q].node_text_single_attribute.is_node_attribute = 0;
                 break;
             }
         }
@@ -3397,9 +3340,9 @@ void release_a_Node_Text_Attribute(INDEX node_idx)
         expect = 1;
 }
 
-Node_Text_Attribute read_a_Node_Text_Attribute(INDEX node_idx)
+Node_Text_Single_Attribute read_a_Node_Text_Attribute(INDEX node_idx)
 {
-    Node_Text_Attribute attribute;
+    Node_Text_Single_Attribute attribute;
 
     char expect = 0;
     while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
@@ -3409,11 +3352,11 @@ Node_Text_Attribute read_a_Node_Text_Attribute(INDEX node_idx)
     
     for (int q = 0; q < 3; q++)
     {
-        if (the_node.self_attribute[q].node_text_attribute.is_node_attribute == 2)
+        if (the_node.self_attribute[q].node_text_single_attribute.is_node_attribute == 2)
         {
-            if (the_node.self_attribute[q].node_text_attribute.kind_is_Node_Text_Attribute == 2)
+            if (the_node.self_attribute[q].node_text_single_attribute.self_is_Node_Text_Attribute == 2)
             {
-                attribute = the_node.self_attribute[q].node_text_attribute;
+                attribute = the_node.self_attribute[q].node_text_single_attribute;
                 break;
             }
         }
@@ -3426,23 +3369,23 @@ Node_Text_Attribute read_a_Node_Text_Attribute(INDEX node_idx)
     return attribute;
 }
 
-void write_a_Node_Text_Attribute(INDEX node_idx, Node_Text_Attribute write_attritube)
+void write_a_Node_Text_Attribute(INDEX node_idx, Node_Text_Single_Attribute write_attritube)
 {
     char expect = 0;
     while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
         expect = 0;
     
     General_Node& the_node = General_Node_Storage[node_idx];
-    vector<Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
+    vector<Link_Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
     int object_size = link_object_list.size();
 
     for (int q = 0; q < object_size; q++)
     {
-        if (link_object_list[q].node_text_attribute.is_node_attribute == 2)
+        if (link_object_list[q].node_text_single_attribute.is_node_attribute == 2)
         {
-            if (link_object_list[q].node_text_attribute.kind_is_Node_Text_Attribute == 2)
+            if (link_object_list[q].node_text_single_attribute.self_is_Node_Text_Attribute == 2)
             {
-                link_object_list[q].node_text_attribute = write_attritube;
+                link_object_list[q].node_text_single_attribute = write_attritube;
                 break;
             }
         }
@@ -3454,9 +3397,9 @@ void write_a_Node_Text_Attribute(INDEX node_idx, Node_Text_Attribute write_attri
 }
 
 
-void create_a_Node_Action_Attribute(INDEX node_idx, Node_Action_Attribute attribute)
+void create_a_Node_Action_Attribute(INDEX node_idx, Node_Base_Action_Attribute attribute)
 {
-    Variable_Attribute fo = {.node_action_attribute = attribute};
+    Link_Variable_Attribute fo = {.node_action_attribute = attribute};
 
     char expect = 0;
     while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
@@ -3479,14 +3422,14 @@ void release_a_Node_Action_Attribute(INDEX node_idx)
         expect = 0;
 
     General_Node& the_node = General_Node_Storage[node_idx];
-    vector<Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
+    vector<Link_Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
     int object_size = link_object_list.size();
 
     for (int q = 0; q < object_size; q++)
     {
         if (link_object_list[q].node_number_attribute.is_node_attribute == 2)
         {
-            if (link_object_list[q].node_number_attribute.kind_is_Node_Number_Attribute == 3)
+            if (link_object_list[q].node_number_attribute.self_is_Node_Number_Attribute == 3)
             {
                 link_object_list[q].node_number_attribute.is_node_attribute = 0;
                 break;
@@ -3500,9 +3443,9 @@ void release_a_Node_Action_Attribute(INDEX node_idx)
 
 }
 
-Node_Action_Attribute read_a_Node_Action_Attribute(INDEX node_idx)
+Node_Base_Action_Attribute read_a_Node_Action_Attribute(INDEX node_idx)
 {
-    Node_Action_Attribute attribute;
+    Node_Base_Action_Attribute attribute;
 
     char expect = 0;
     while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
@@ -3514,7 +3457,7 @@ Node_Action_Attribute read_a_Node_Action_Attribute(INDEX node_idx)
     {
         if (the_node.self_attribute[q].node_action_attribute.is_node_attribute == 2)
         {
-            if (the_node.self_attribute[q].node_action_attribute.kind_is_Node_Motion_Attribute == 5)
+            if (the_node.self_attribute[q].node_action_attribute.self_is_Node_Action_Attribute == 5)
             {
                 attribute = the_node.self_attribute[q].node_action_attribute;
             }
@@ -3529,21 +3472,21 @@ Node_Action_Attribute read_a_Node_Action_Attribute(INDEX node_idx)
 
 }
 
-void write_a_Node_Action_Attribute(INDEX node_idx, Node_Action_Attribute write_attritube)
+void write_a_Node_Action_Attribute(INDEX node_idx, Node_Base_Action_Attribute write_attritube)
 {
     char expect = 0;
     while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
         expect = 0;
     
     General_Node the_node = General_Node_Storage[node_idx];
-    vector<Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
+    vector<Link_Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
     int object_size = link_object_list.size();
 
     for (int q = 0; q < object_size; q++)
     {
         if (link_object_list[q].node_action_attribute.is_node_attribute == 2)
         {
-            if (link_object_list[q].node_action_attribute.kind_is_Node_Motion_Attribute == 5)
+            if (link_object_list[q].node_action_attribute.self_is_Node_Action_Attribute == 5)
             {
                 link_object_list[q].node_action_attribute = write_attritube;
                 break;
@@ -3556,17 +3499,30 @@ void write_a_Node_Action_Attribute(INDEX node_idx, Node_Action_Attribute write_a
         expect = 1;
 }
 
-INDEX get_a_highist_value_of_sort(Advanced_Value_Sort& Require_object_sort)
-{
-    INDEX idx = Require_object_sort.list[0].lower_one;
-    
-    // while()
-    // {
-    //     idx = Require_object_sort.list[idx].target_idx;
-    // }
 
-    return idx;
+
+
+void push_back_a_link_to_Node(INDEX node_idx, Link_Variable_Attribute variable_attribute)
+{
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+
+    General_Node_Storage[node_idx].Node_variable_attribute_list.push_back(variable_attribute);
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
 }
+
+
+Link_Node_Attribute read_a_node_action_connect_target(INDEX)
+{
+    Link_Node_Attribute lna;
+
+    return lna;
+}
+
 
 struct Node_Sequence_Info
 {
@@ -3580,276 +3536,26 @@ Node_Sequence_Info read_a_node_sequence_info(INDEX node_idx)
     return node_sequence_info;
 }
 
-//
-INDEX create_a_local_Match_Generate(
-    vector<Match_Generate>& match_generate_List, vector<INDEX>& Free_match_generate_index,
-    Match_Generate& added_image_match)
+
+void get_a_category_node_newist_constituent(INDEX node_idx, ID& constituent_id, INDEX& newist_scene)
 {
-    INDEX idx;
+    ID constituent_id;
 
-    if(!Free_match_generate_index.empty())
-    {
-        idx = Free_match_generate_index.back();
-        Free_match_generate_index.pop_back();
-        match_generate_List[idx] = added_image_match;
-    } else {
-        idx = match_generate_List.size();
-        match_generate_List.push_back(added_image_match);
-    }
+    auto& Node_variable_attribute_list = General_Node_Storage[node_idx].Node_variable_attribute_list;
 
-    return idx;
-}
-
-void release_a_local_Match_Generate(
-    vector<Match_Generate>& match_generate_List,
-    vector<INDEX>& Free_image_match_index,
-    INDEX target_idx)
-{
-    match_generate_List[target_idx].attritube_kind = 0;
-    Free_image_match_index.push_back(target_idx);
 }
 
 
-void get_a_local_focus_object(int example_number, vector<INDEX> &storage_list, vector<INDEX> &free_list)
+Link_Variable_Attribute read_a_category_node_condition(INDEX node_idx)
 {
-    if (!free_list.empty())
-    {
-        storage_list[free_list.back()] = example_number;
-        free_list.pop_back();
+    Link_Variable_Attribute return_link = filler_variable_attribute;
     
-    } else {
-        storage_list.push_back(example_number);
-    }
-}
 
-
-INDEX set_a_overall_Require_Object(Require_Object require_object)
-{
-    INDEX idx;
-    if(Free_Require_Object_Idx.size() != 0)
-    {
-        idx = Free_Require_Object_Idx.back();
-        Free_Require_Object_Idx.pop_back();
-        Require_Object_List[idx].require_object = require_object;
-
-    } else {
-        idx = Require_Object_List.size();
-        Variable_Attribute ro = {.require_object = require_object};
-        Require_Object_List.push_back(ro);
-    }
-    
-    return idx;
-}
-
-void clear_a_overall_Require_Object(INDEX idx)
-{
-    Free_Require_Object_Idx.push_back(idx);
-}
-
-INDEX set_a_overall_Generate_Match(Match_Generate rm)
-{
-    INDEX idx;
-    if(Free_Match_Generate_Idx.size() != 0)
-    {
-        idx = Free_Match_Generate_Idx.back();
-        Free_Match_Generate_Idx.pop_back();
-        Match_Generate_List[idx] = rm;
-
-    } else {
-        idx = Match_Generate_List.size();
-        Match_Generate_List.push_back(rm);
-    }
-    
-    return idx;
-}
-
-void clear_a_overall_Generate_Match(INDEX idx)
-{
-    Free_Match_Generate_Idx.push_back(idx);
-    Match_Generate_List[idx].curr_is_use = 0;
-}
-
-INDEX create_a_Formal_Require_Object(Require_Object require_object)
-{
-    INDEX idx;
-    if(Free_Formal_Require_Object_Index.size() != 0)
-    {
-        idx = Free_Formal_Require_Object_Index.back();
-        Free_Formal_Require_Object_Index.pop_back();
-        All_Formal_Require_Object_List[idx].require_object = require_object;
-
-    } else {
-        idx = All_Formal_Require_Object_List.size();
-        Variable_Attribute va = {.require_object = require_object};
-        All_Formal_Require_Object_List.push_back(va);
-    }
-    
-    return idx;
-}
-
-void clear_a_Formal_Require_Object(INDEX idx)
-{
-    Free_Formal_Require_Object_Index.push_back(idx);
-    All_Formal_Require_Object_List[idx].require_object.is_require = 0;
-}
-
-
-INDEX read_require_summary(ID target)
-{
-    vector<Focus_Object>& chose_list = Id_Find_Focus_Object[target];
-
-    for(int a = 0; a < chose_list.size(); a++)
-    {
-        Focus_Object& fo = chose_list[a];
-
-        if(fo.kind = 3)
-            return fo.target_idx;
-    }
-    
-    return 0;
-}
-
-void add_scene_a_local_require_object(INDEX scene_idx, Require_Object add_object)
-{
-    
-}
-
-void update_scene_a_local_require_value(vector< vector<int> >& require_list, INDEX require_idx)
-{
-    
-}
-
-void text_require_object_update(vector< vector<int> >& require_list, INDEX require_idx,
-    int change_num)
-{
-    int outside_size = require_list.size();
-
-    for(int a = 0; a < outside_size; a++)
-    {
-        require_list[a][require_idx] += change_num;
-        require_idx /= 8;
-    }
-}
+    return return_link;
+};
 
 
 
-INDEX create_a_Image_Scene(Image_Scene new_map)
-{
-    INDEX idx;
-
-    if (Free_Image_Scene_Index.size() > 0)
-    {
-        idx = Free_Image_Scene_Index.back();
-        Free_Image_Scene_Index.pop_back();
-        Image_Scene_Storage[idx] = new_map;
-        
-    } else {
-        idx = Image_Scene_Storage.size();
-        Image_Scene_Storage.push_back(new_map);
-    }
-
-    Image_Scene_Num++;
-
-    return idx;
-}
-
-void delete_a_Image_Scene(INDEX idx)
-{
-    Image_Scene_Storage[idx].curr_use = 0;
-    Free_Image_Scene_Index.push_back(idx);
-    Image_Scene_Num--;
-    // clear;
-    // reserve();
-}
-
-
-INDEX create_a_Time_Scene(Time_Scene new_map)
-{
-    INDEX idx;
-
-    if (Free_Time_Scene_Index.size() > 0)
-    {
-        idx = Free_Time_Scene_Index.back();
-        Free_Time_Scene_Index.pop_back();
-        Time_Scene_Storage[idx] = new_map;
-        
-    } else {
-        idx = Time_Scene_Storage.size();
-        Time_Scene_Storage.push_back(new_map);
-    }
-
-    Time_Scene_Num++;
-
-    return idx;
-}
-
-void delete_a_Time_Scene(INDEX idx)
-{
-    Time_Scene_Storage[idx].curr_use = 0;
-    Free_Time_Scene_Index.push_back(idx);
-    Time_Scene_Num--;
-    // clear;
-    // reserve();
-}
-
-INDEX create_a_Text_Scene(Text_Scene new_text)
-{
-    INDEX idx;
-
-    if (!Free_Text_Scene_Index.empty())
-    {
-        idx = Free_Text_Scene_Index.back();
-        Free_Text_Scene_Index.pop_back();
-        Text_Scene_Storage[idx] = new_text;
-
-    } else {
-        new_text.input_time = CURRENT_MODEL_TIME;
-        idx = Text_Scene_Storage.size();
-        Text_Scene_Storage.push_back(new_text);
-    }
-
-    Text_Scene_Num++;
-
-    return idx;
-}
-
-void delete_a_Text_Scene(INDEX idx)
-{
-    Text_Scene& text = Text_Scene_Storage[idx];
-    text.is_use = 0;
-    Free_Text_Scene_Index.push_back(idx);
-    Text_Scene_Num--;
-}
-
-
-INDEX create_a_gtk3_text_display(Gtk3_Text_Display text_display)
-{
-    int i = 0;
-    int size = Gtk3_Text_Display_Storage.size();
-
-    while (i < size)
-    {
-        if (Gtk3_Text_Display_Storage[i].use == 0)
-        {
-            Gtk3_Text_Display_Storage[i] = text_display;
-            break;
-        }
-
-        i++;
-    }
-
-    if (i == size)
-    {
-        Gtk3_Text_Display_Storage.push_back(text_display);
-    }
-
-    return i;
-}
-
-void delete_a_gtk3_text_display(INDEX idx)
-{
-    Gtk3_Text_Display_Storage[idx].use = 0;
-}
 
 
 INDEX create_a_General_Scene()
@@ -3950,30 +3656,711 @@ void delete_a_General_Scene(INDEX idx)
 }
 
 
-void push_back_a_node_to_General_Scene(INDEX scene_idx, INDEX node_idx)
+INDEX create_a_Image_Scene(Image_Scene new_map)
 {
-    Link_Node_Attribute link;
-    Variable_Attribute va = {.link_node_attribute = link}; // number_node的1�71ￄ1�77
-    
-    char expect = 0;
-    while( Occupy_Single_General_Scene[scene_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
-        expect = 0;
+    INDEX idx;
 
-    General_Scene& scene = General_Scene_Storage[scene_idx];
-    scene.Overall_general_node_list.push_back(node_idx);
-    General_Node& node = General_Node_Storage[node_idx];
-    ID node_id = node.self_id;
-    scene.Id_find_overall_node[node_id].push_back(node_idx);
+    if (Free_Image_Scene_Index.size() > 0)
+    {
+        idx = Free_Image_Scene_Index.back();
+        Free_Image_Scene_Index.pop_back();
+        Image_Scene_Storage[idx] = new_map;
+        
+    } else {
+        idx = Image_Scene_Storage.size();
+        Image_Scene_Storage.push_back(new_map);
+    }
+
+    Image_Scene_Num++;
+
+    return idx;
+}
+
+void delete_a_Image_Scene(INDEX idx)
+{
+    Image_Scene_Storage[idx].curr_use = 0;
+    Free_Image_Scene_Index.push_back(idx);
+    Image_Scene_Num--;
+    // clear;
+    // reserve();
+}
+
+
+INDEX create_a_Time_Scene(Time_Scene new_map)
+{
+    INDEX idx;
+
+    if (Free_Time_Scene_Index.size() > 0)
+    {
+        idx = Free_Time_Scene_Index.back();
+        Free_Time_Scene_Index.pop_back();
+        Time_Scene_Storage[idx] = new_map;
+        
+    } else {
+        idx = Time_Scene_Storage.size();
+        Time_Scene_Storage.push_back(new_map);
+    }
+
+    Time_Scene_Num++;
+
+    return idx;
+}
+
+void delete_a_Time_Scene(INDEX idx)
+{
+    Time_Scene_Storage[idx].curr_use = 0;
+    Free_Time_Scene_Index.push_back(idx);
+    Time_Scene_Num--;
+    // clear;
+    // reserve();
+}
+
+
+INDEX create_a_Text_Scene(Text_Scene new_text)
+{
+    INDEX idx;
+
+    if (!Free_Text_Scene_Index.empty())
+    {
+        idx = Free_Text_Scene_Index.back();
+        Free_Text_Scene_Index.pop_back();
+        Text_Scene_Storage[idx] = new_text;
+
+    } else {
+        new_text.input_time = CURRENT_MODEL_TIME;
+        idx = Text_Scene_Storage.size();
+        Text_Scene_Storage.push_back(new_text);
+    }
+
+    Text_Scene_Num++;
+
+    return idx;
+}
+
+void delete_a_Text_Scene(INDEX idx)
+{
+    Text_Scene& text = Text_Scene_Storage[idx];
+    text.is_use = 0;
+    Free_Text_Scene_Index.push_back(idx);
+    Text_Scene_Num--;
+}
+
+
+INDEX create_a_gtk3_text_display(Gtk3_Text_Display text_display)
+{
+    int i = 0;
+    int size = Gtk3_Text_Display_Storage.size();
+
+    while (i < size)
+    {
+        if (Gtk3_Text_Display_Storage[i].use == 0)
+        {
+            Gtk3_Text_Display_Storage[i] = text_display;
+            break;
+        }
+
+        i++;
+    }
+
+    if (i == size)
+    {
+        Gtk3_Text_Display_Storage.push_back(text_display);
+    }
+
+    return i;
+}
+
+void delete_a_gtk3_text_display(INDEX idx)
+{
+    Gtk3_Text_Display_Storage[idx].use = 0;
+}
+
+
+
+void create_a_Scene_Image_Attribute(INDEX node_idx, Scene_Image_Attribute attribute)
+{
+    Link_Variable_Attribute va = {.scene_image_attribute = attribute};
+
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
     
+    General_Node& curr_node = General_Node_Storage[node_idx];
+    curr_node.Node_variable_attribute_list.push_back(va);
 
     expect = 1;
-    while( Occupy_Single_General_Scene[scene_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
         expect = 1;
 }
 
-void push_back_a_related_scene_to_General_Scene(INDEX scene_idx, Link_Scene_Attribute scene_related)
+void release_a_Scene_Image_Attribute(INDEX node_idx)
 {
-    Variable_Attribute so = {.link_scene_attribute = scene_related};
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node& the_node = General_Node_Storage[node_idx];
+    vector<Link_Variable_Attribute>& link_list = the_node.Node_variable_attribute_list;
+    int object_size = link_list.size();
+
+    for (int q = 0; q < object_size; q++)
+    {
+        if (link_list[q].node_image_single_attribute.is_node_attribute == 2)
+        {
+            if (link_list[q].node_image_single_attribute.self_is_Node_Image_Attribute == 1)
+            {
+                link_list[q].node_image_single_attribute.is_node_attribute = 0;
+                break;
+            }
+        }
+    }
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+}
+
+Scene_Image_Attribute read_a_Scene_Image_Attribute(INDEX node_idx)
+{
+    Scene_Image_Attribute attribute;
+
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node& the_node = General_Node_Storage[node_idx];
+
+    for (int q = 0; q < 3; q++)
+    {
+        if (the_node.self_attribute[q].scene_image_attribute.is_scene_attribute == 5)
+        {
+            if (the_node.self_attribute[q].scene_image_attribute.self_is_Scene_Image_Attribute == 1)
+            {
+                attribute = the_node.self_attribute[q].scene_image_attribute;
+                break;
+            }
+        }
+    }
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+
+    return attribute;
+}
+
+void write_a_Scene_Image_Attribute(INDEX node_idx, Scene_Image_Attribute write_attribute)
+{
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node& the_node = General_Node_Storage[node_idx];
+    vector<Link_Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
+    int object_size = link_object_list.size();
+
+    for (int q = 0; q < object_size; q++)
+    {
+        if (link_object_list[q].scene_image_attribute.is_scene_attribute == 5)
+        {
+            if (link_object_list[q].scene_image_attribute.self_is_Scene_Image_Attribute == 1)
+            {
+                link_object_list[q].scene_image_attribute = write_attribute;
+                break;
+            }
+        }
+    }
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+}
+
+
+void create_a_Node_Number_Attribute(INDEX node_idx, Scene_Number_Attribute attribute)
+{
+    Link_Variable_Attribute va = {.scene_number_attribute = attribute};
+
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node& curr_node = General_Node_Storage[node_idx];
+    curr_node.Node_variable_attribute_list.push_back(va);
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+}
+
+void release_a_Scene_Number_Attribute(INDEX node_idx)
+{
+    Scene_Number_Attribute attribute;
+
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+
+    General_Node& the_node = General_Node_Storage[node_idx];
+    vector<Link_Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
+    int object_size = link_object_list.size();
+
+    for (int q = 0; q < object_size; q++)
+    {
+        if (link_object_list[q].scene_number_attribute.self_is_Scene_Number_Attribute == 5)
+        {
+            if (link_object_list[q].scene_number_attribute.self_is_Scene_Number_Attribute == 2)
+            {
+                link_object_list[q].scene_image_attribute.is_scene_attribute = 0;
+                break;
+            }
+        }
+    }
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+
+}
+
+Scene_Number_Attribute read_a_Scene_Number_Attribute(INDEX node_idx)
+{
+    Scene_Number_Attribute attribute;
+
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node& the_node = General_Node_Storage[node_idx];
+
+    for (int q = 0; q < 3; q++)
+    {
+        if (the_node.self_attribute[q].scene_number_attribute.is_scene_attribute == 5)
+        {
+            if (the_node.self_attribute[q].scene_number_attribute.self_is_Scene_Number_Attribute == 2)
+            {
+                attribute = the_node.self_attribute[q].scene_number_attribute;
+            }
+        }
+    }
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+
+    return attribute;
+
+}
+
+void write_a_Scene_Number_Attribute(INDEX node_idx, Scene_Number_Attribute write_attritube)
+{
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node the_node = General_Node_Storage[node_idx];
+    vector<Link_Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
+    int object_size = link_object_list.size();
+
+    for (int q = 0; q < object_size; q++)
+    {
+        if (link_object_list[q].scene_number_attribute.is_scene_attribute == 5)
+        {
+            if (link_object_list[q].scene_number_attribute.self_is_Scene_Number_Attribute == 2)
+            {
+                link_object_list[q].scene_number_attribute = write_attritube;
+                break;
+            }
+        }
+    }
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+}
+
+
+void create_a_Scene_Time_Attribute(INDEX node_idx, Scene_Time_Attribute attribute)
+{
+    Link_Variable_Attribute fo = {.scene_time_attribute = attribute};
+
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node& curr_node = General_Node_Storage[node_idx];
+    curr_node.Node_variable_attribute_list.push_back(fo);
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+}
+
+void release_a_Scene_Time_Attribute(INDEX node_idx)
+{
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node& the_node = General_Node_Storage[node_idx];
+    vector<Link_Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
+    int object_size = link_object_list.size();
+
+    for (int q = 0; q < object_size; q++)
+    {
+        if (link_object_list[q].scene_time_attribute.is_scene_attribute == 5)
+        {
+            if (link_object_list[q].scene_time_attribute.self_is_Scene_Time_Attribute == 3)
+            {
+                link_object_list[q].scene_time_attribute.is_scene_attribute = 0;
+                break;
+            }
+        }
+    }
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+
+}
+
+Scene_Time_Attribute read_a_Scene_Time_Attribute(INDEX node_idx)
+{
+    Scene_Time_Attribute attribute;
+
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node &the_node = General_Node_Storage[node_idx];
+
+    for (int q = 0; q < 3; q++)
+    {
+        if (the_node.self_attribute[q].scene_time_attribute.is_scene_attribute == 5)
+        {
+            if (the_node.self_attribute[q].scene_time_attribute.self_is_Scene_Time_Attribute == 3)
+            {
+                attribute = the_node.self_attribute[q].scene_time_attribute;
+            }
+        }
+    }
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+
+    return attribute;
+}
+
+void write_a_Scene_Time_Attribute(INDEX node_idx, Scene_Time_Attribute write_attritube)
+{
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node& the_node = General_Node_Storage[node_idx];
+
+    for (int q = 0; q < 3; q++)
+    {
+        if (the_node.self_attribute[q].scene_time_attribute.is_scene_attribute == 5)
+        {
+            if (the_node.self_attribute[q].scene_time_attribute.self_is_Scene_Time_Attribute == 3)
+            {
+                the_node.self_attribute[q].scene_time_attribute = write_attritube;
+                break;
+            }
+        }
+    }
+    
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+}
+
+
+void create_a_Scene_Text_Attribute(INDEX node_idx, Scene_Text_Attribute attribute)
+{
+    Link_Variable_Attribute va = {.scene_text_attribute = attribute};
+
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node& curr_node = General_Node_Storage[node_idx];
+    curr_node.Node_variable_attribute_list.push_back(va);
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+}
+
+void release_a_Scene_Text_Attribute(INDEX node_idx)
+{
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node& the_node = General_Node_Storage[node_idx];
+    vector<Link_Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
+    int object_size = link_object_list.size();
+
+    for (int q = 0; q < object_size; q++)
+    {
+        if (link_object_list[q].scene_text_attribute.is_scene_attribute == 5)
+        {
+            if (link_object_list[q].scene_text_attribute.self_is_Scene_Text_Attribute == 4)
+            {
+                link_object_list[q].scene_text_attribute.is_scene_attribute = 0;
+                break;
+            }
+        }
+    }
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+}
+
+Scene_Text_Attribute read_a_Scene_Text_Attribute(INDEX node_idx)
+{
+    Scene_Text_Attribute attribute;
+
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node& the_node = General_Node_Storage[node_idx];
+    
+    for (int q = 0; q < 3; q++)
+    {
+        if (the_node.self_attribute[q].scene_text_attribute.is_scene_attribute == 5)
+        {
+            if (the_node.self_attribute[q].scene_text_attribute.self_is_Scene_Text_Attribute == 4)
+            {
+                attribute = the_node.self_attribute[q].scene_text_attribute;
+                break;
+            }
+        }
+    }
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+
+    return attribute;
+}
+
+void write_a_Scene_Text_Attribute(INDEX node_idx, Scene_Text_Attribute write_attritube)
+{
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node& the_node = General_Node_Storage[node_idx];
+    vector<Link_Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
+    int object_size = link_object_list.size();
+
+    for (int q = 0; q < object_size; q++)
+    {
+        if (link_object_list[q].scene_text_attribute.is_scene_attribute == 5)
+        {
+            if (link_object_list[q].scene_text_attribute.self_is_Scene_Text_Attribute == 4)
+            {
+                link_object_list[q].scene_text_attribute = write_attritube;
+                break;
+            }
+        }
+    }
+    
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+}
+
+
+void create_a_Scene_Action_Attribute(INDEX node_idx, Scene_Action_Attribute attribute)
+{
+    Link_Variable_Attribute fo = {.scene_action_attribute = attribute};
+
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node& curr_node = General_Node_Storage[node_idx];
+    curr_node.Node_variable_attribute_list.push_back(fo);
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+}
+
+void release_a_Scene_Action_Attribute(INDEX node_idx)
+{
+    Scene_Number_Attribute attribute;
+
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+
+    General_Node& the_node = General_Node_Storage[node_idx];
+    vector<Link_Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
+    int object_size = link_object_list.size();
+
+    for (int q = 0; q < object_size; q++)
+    {
+        if (link_object_list[q].scene_action_attribute.is_scene_attribute == 5)
+        {
+            if (link_object_list[q].scene_action_attribute.self_is_Scene_Action_Attribute == 5)
+            {
+                link_object_list[q].node_number_attribute.is_node_attribute = 0;
+                break;
+            }
+        }
+    }
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+
+}
+
+Scene_Action_Attribute read_a_Scene_Action_Attribute(INDEX node_idx)
+{
+    Scene_Action_Attribute attribute;
+
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node& the_node = General_Node_Storage[node_idx];
+
+    for (int q = 0; q < 3; q++)
+    {
+        if (the_node.self_attribute[q].scene_action_attribute.is_scene_attribute == 5)
+        {
+            if (the_node.self_attribute[q].scene_action_attribute.self_is_Scene_Action_Attribute == 5)
+            {
+                attribute = the_node.self_attribute[q].scene_action_attribute;
+            }
+        }
+    }
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+
+    return attribute;
+}
+
+void write_a_Scene_Action_Attribute(INDEX node_idx, Scene_Action_Attribute write_attritube)
+{
+    char expect = 0;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+        expect = 0;
+    
+    General_Node the_node = General_Node_Storage[node_idx];
+    vector<Link_Variable_Attribute>& link_object_list = the_node.Node_variable_attribute_list;
+    int object_size = link_object_list.size();
+
+    for (int q = 0; q < object_size; q++)
+    {
+        if (link_object_list[q].scene_action_attribute.is_scene_attribute == 5)
+        {
+            if (link_object_list[q].scene_action_attribute.self_is_Scene_Action_Attribute == 5)
+            {
+                link_object_list[q].scene_action_attribute = write_attritube;
+                break;
+            }
+        }
+    }
+
+    expect = 1;
+    while( Occupy_Single_General_Node[node_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+        expect = 1;
+}
+
+
+
+
+void push_back_a_node_to_scene(INDEX scene_idx, INDEX node_idx, char scene_kind)
+{
+    Link_Node_Attribute link;
+    Link_Variable_Attribute va = {.link_node_attribute = link};
+    
+    if(scene_kind == 1)
+    {
+        char expect = 0;
+        while( Occupy_Single_General_Scene[scene_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+            expect = 0;
+
+        General_Scene& scene = General_Scene_Storage[scene_idx];
+        scene.Overall_general_node_list.push_back(node_idx);
+        General_Node& node = General_Node_Storage[node_idx];
+        ID node_id = node.self_id;
+        scene.Id_find_overall_node[node_id].push_back(node_idx);
+        
+        expect = 1;
+        while( Occupy_Single_General_Scene[scene_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+            expect = 1;
+        
+    } else if(scene_kind == 2) {
+
+        char expect = 0;
+        while( Occupy_Single_Image_Scene[scene_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+            expect = 0;
+
+        Image_Scene& scene = Image_Scene_Storage[scene_idx];
+        scene.Overall_image_node_list.push_back(node_idx);
+        General_Node& node = General_Node_Storage[node_idx];
+        ID node_id = node.self_id;
+        scene.Id_find_overall_node[node_id].push_back(node_idx);
+        
+        expect = 1;
+        while( Occupy_Single_Image_Scene[scene_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+            expect = 1;
+        
+    } else if(scene_kind == 3) {
+        
+        char expect = 0;
+        while( Occupy_Single_Time_Scene[scene_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+            expect = 0;
+
+        Time_Scene& scene = Time_Scene_Storage[scene_idx];
+        scene.Overall_time_node_list.push_back(node_idx);
+        General_Node& node = General_Node_Storage[node_idx];
+        ID node_id = node.self_id;
+        scene.Id_find_overall_node[node_id].push_back(node_idx);
+        
+        expect = 1;
+        while( Occupy_Single_Time_Scene[scene_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+            expect = 1;
+        
+    } else if(scene_kind == 4) {
+        
+        char expect = 0;
+        while( Occupy_Single_Text_Scene[scene_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
+            expect = 0;
+
+        Text_Scene& scene = Text_Scene_Storage[scene_idx];
+        scene.Overall_text_node_list.push_back(node_idx);
+        General_Node& node = General_Node_Storage[node_idx];
+        ID node_id = node.self_id;
+        scene.Id_find_overall_node[node_id].push_back(node_idx);
+        
+        expect = 1;
+        while( Occupy_Single_Text_Scene[scene_idx].compare_exchange_strong(expect, 0, memory_order_seq_cst) )
+            expect = 1;
+    }
+
+
+
+}
+
+Link_Variable_Attribute;
+
+void push_back_a_link_to_scene(INDEX scene_idx, Link_Scene_Attribute scene_related, char scene_kind)
+{
+    Link_Variable_Attribute so = {.link_scene_attribute = scene_related};
     char expect = 0;
     while( Occupy_Single_General_Scene[scene_idx].compare_exchange_strong(expect, 1, memory_order_seq_cst) )
         expect = 0;
@@ -3986,10 +4373,177 @@ void push_back_a_related_scene_to_General_Scene(INDEX scene_idx, Link_Scene_Attr
         expect = 1;
 }
 
-Variable_Attribute read_a_scene_related_motion_detect(INDEX scene_idx)
+Link_Variable_Attribute read_a_scene_related_motion_detect(INDEX scene_idx)
 {
     ;
 }
+
+
+INDEX get_a_highist_value_of_sort(Advanced_Value_Sort& Require_object_sort)
+{
+    INDEX idx = Require_object_sort.list[0].lower_one;
+    
+    // while()
+    // {
+    //     idx = Require_object_sort.list[idx].target_idx;
+    // }
+
+    return idx;
+}
+
+//
+INDEX create_a_local_Match_Generate(
+    vector<Match_Generate>& match_generate_List, vector<INDEX>& Free_match_generate_index,
+    Match_Generate& added_image_match)
+{
+    INDEX idx;
+
+    if(!Free_match_generate_index.empty())
+    {
+        idx = Free_match_generate_index.back();
+        Free_match_generate_index.pop_back();
+        match_generate_List[idx] = added_image_match;
+    } else {
+        idx = match_generate_List.size();
+        match_generate_List.push_back(added_image_match);
+    }
+
+    return idx;
+}
+
+void release_a_local_Match_Generate(
+    vector<Match_Generate>& match_generate_List,
+    vector<INDEX>& Free_image_match_index,
+    INDEX target_idx)
+{
+    match_generate_List[target_idx].attritube_kind = 0;
+    Free_image_match_index.push_back(target_idx);
+}
+
+
+void get_a_local_focus_object(int example_number, vector<INDEX> &storage_list, vector<INDEX> &free_list)
+{
+    if (!free_list.empty())
+    {
+        storage_list[free_list.back()] = example_number;
+        free_list.pop_back();
+    
+    } else {
+        storage_list.push_back(example_number);
+    }
+}
+
+
+INDEX set_a_overall_Require_Object(Require_Object require_object)
+{
+    INDEX idx;
+    if(Free_Require_Object_Idx.size() != 0)
+    {
+        idx = Free_Require_Object_Idx.back();
+        Free_Require_Object_Idx.pop_back();
+        Require_Object_List[idx].require_object = require_object;
+
+    } else {
+        idx = Require_Object_List.size();
+        Link_Variable_Attribute ro = {.require_object = require_object};
+        Require_Object_List.push_back(ro);
+    }
+    
+    return idx;
+}
+
+void clear_a_overall_Require_Object(INDEX idx)
+{
+    Free_Require_Object_Idx.push_back(idx);
+}
+
+INDEX set_a_overall_Generate_Match(Match_Generate rm)
+{
+    INDEX idx;
+    if(Free_Match_Generate_Idx.size() != 0)
+    {
+        idx = Free_Match_Generate_Idx.back();
+        Free_Match_Generate_Idx.pop_back();
+        Match_Generate_List[idx] = rm;
+
+    } else {
+        idx = Match_Generate_List.size();
+        Match_Generate_List.push_back(rm);
+    }
+    
+    return idx;
+}
+
+void clear_a_overall_Generate_Match(INDEX idx)
+{
+    Free_Match_Generate_Idx.push_back(idx);
+    Match_Generate_List[idx].curr_is_use = 0;
+}
+
+INDEX create_a_Formal_Require_Object(Require_Object require_object)
+{
+    INDEX idx;
+    if(Free_Formal_Require_Object_Index.size() != 0)
+    {
+        idx = Free_Formal_Require_Object_Index.back();
+        Free_Formal_Require_Object_Index.pop_back();
+        All_Formal_Require_Object_List[idx].require_object = require_object;
+
+    } else {
+        idx = All_Formal_Require_Object_List.size();
+        Link_Variable_Attribute va = {.require_object = require_object};
+        All_Formal_Require_Object_List.push_back(va);
+    }
+    
+    return idx;
+}
+
+void clear_a_Formal_Require_Object(INDEX idx)
+{
+    Free_Formal_Require_Object_Index.push_back(idx);
+    All_Formal_Require_Object_List[idx].require_object.is_require = 0;
+}
+
+
+INDEX read_require_summary(ID target)
+{
+    vector<Focus_Object>& chose_list = Id_Find_Focus_Object[target];
+
+    for(int a = 0; a < chose_list.size(); a++)
+    {
+        Focus_Object& fo = chose_list[a];
+
+        if(fo.kind = 3)
+            return fo.target_idx;
+    }
+    
+    return 0;
+}
+
+void add_scene_a_require_object(INDEX scene_idx, Require_Object add_object)
+{
+    
+}
+
+void update_scene_a_require_value(vector< vector<int> >& require_list, INDEX require_idx)
+{
+    
+}
+
+void text_require_object_update(vector< vector<int> >& require_list, INDEX require_idx,
+    int change_num)
+{
+    int outside_size = require_list.size();
+
+    for(int a = 0; a < outside_size; a++)
+    {
+        require_list[a][require_idx] += change_num;
+        require_idx /= 8;
+    }
+}
+
+
+
 
 
 static auto last_staedy_time = std::chrono::steady_clock::now();
@@ -4003,7 +4557,7 @@ int get_current_second()
 
     if (current_system_seconds < last_system_seconds)
     {
-        std::cout << "警告：系统时间回拄1�71ￄ1�77";
+        std::cout << "警告：系统时间异常回拨";
     }
     else
     {

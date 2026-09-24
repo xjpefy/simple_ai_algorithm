@@ -26,8 +26,8 @@ bool Self_Communicate = 0;
 bool Self_Capture = 0;
 bool Self_Action = 0;
 
-long long Inside_MODEL_TIME = -1;  //模型时间
-long long RECV_MODEL_TIME = 0;  //
+int Inside_MODEL_TIME = -1;  //模型时间
+int RECV_MODEL_TIME = 0;  //
 
 bool If_Send_Text = 0;
 bool If_Display_Text = 0;
@@ -202,8 +202,8 @@ struct Send_overview{
     unsigned short width;   // 图片宽度
     unsigned short height;  // 图片高度
     unsigned short text_num;// 文本字节
-    long long code_time;    // 程序时间
-};//14字节
+    int code_time;    // 程序时间
+};//10字节
 
 
 //接收指令概览
@@ -214,8 +214,8 @@ struct Recv_Instruct{
     char if_capture;
     char action_num;
     unsigned short text_num;// 文本字节量
-    long long model_time;   // 模型时间
-};//15字节
+    int model_time;   // 模型时间
+};//11字节
 
 
 //行动输出 windows版本
@@ -348,7 +348,7 @@ int Socket_thread()
     Data_Send_Vector.reserve(30*1024*1024);
 
     Recv_Instruct r_i;
-    char action_buffer[60];//改，padding
+    char action_buffer[60];
 
     long long verification = 0;
 
@@ -370,7 +370,7 @@ int Socket_thread()
         memcpy( &r_i.if_capture, Data_Recv_Vector.data() + 3, 1);
         memcpy( &r_i.action_num, Data_Recv_Vector.data() + 4, 1);
         memcpy( &r_i.text_num, Data_Recv_Vector.data() + 5, 2);
-        memcpy( &r_i.model_time, Data_Recv_Vector.data() + 7, 8);
+        memcpy( &r_i.model_time, Data_Recv_Vector.data() + 7, 4);
 
         Data_Recv_Vector.clear();
 
@@ -407,14 +407,14 @@ int Socket_thread()
             {
                 for(int r = 0;r < r_i.action_num;r++)
                 {
-                    Model_Action output;//padding，改
+                    Model_Action output;
                     output.action_order = action_buffer[r*12];
                     output.action_kind = action_buffer[r*12 + 1];
                     output.vk = (unsigned char)action_buffer[r*12 + 2];
                     output.mouseData = action_buffer[r*12 + 3];
                     output.x = action_buffer[r*12 + 4];
                     output.y = action_buffer[r*12 + 6];
-                    output.dwFlags = (unsigned int)action_buffer[r*12 + 8];
+                    output.dwFlags = (unsigned int)action_buffer[r*12 + 4];
 
                     Action_to_Sendinput(output);
 
@@ -427,10 +427,10 @@ int Socket_thread()
         //接收完成
 
         //更新模型时间
-        if( abs(Inside_MODEL_TIME - RECV_MODEL_TIME) > 1)
+        if( Inside_MODEL_TIME != RECV_MODEL_TIME)
         {
             //丢包情况判断
-            if( abs(RECV_MODEL_TIME - Inside_MODEL_TIME) > 200)
+            if( abs(RECV_MODEL_TIME - Inside_MODEL_TIME) > 1)
             {
                 //首次，更新
                 if( Inside_MODEL_TIME == -1 )
@@ -473,7 +473,7 @@ int Socket_thread()
         Data_Send_Vector.insert(Data_Send_Vector.end(), (char*)&so.width, (char*)&so.width + 2);
         Data_Send_Vector.insert(Data_Send_Vector.end(), (char*)&so.height, (char*)&so.height + 2);
         Data_Send_Vector.insert(Data_Send_Vector.end(), (char*)&so.text_num, (char*)&so.text_num + 2);
-        Data_Send_Vector.insert(Data_Send_Vector.end(), (char*)&so.code_time, (char*)&so.code_time + 8);
+        Data_Send_Vector.insert(Data_Send_Vector.end(), (char*)&so.code_time, (char*)&so.code_time + 4);
 
         // ===== 数据图文 =====
         Data_Send_Vector.insert(Data_Send_Vector.end(), (const char*)Send_Rgb_Map.data(), (const char*)Send_Rgb_Map.data() + so.width*so.height*3);

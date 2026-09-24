@@ -7,6 +7,10 @@
 
 
 
+/*
+运算端gui使用gtk3，
+读写路径为Linux版
+*/
 
 const int SEND_PORT = 5095;
 string IP = "10.43.79.101";
@@ -23,8 +27,8 @@ struct Recv_Overview
     unsigned short image_height;
     unsigned short receive_text_num;
     
-    long long code_time;
-}; // 15
+    int code_time;
+}; // 11
 
 
 struct Send_Instruct
@@ -36,23 +40,23 @@ struct Send_Instruct
     char action_num;
     unsigned short send_text_num;
 
-    long long model_time;
-}; // 15
+    int model_time;
+}; // 11
 
 vector<RGB_Unit> Receive_PixelMap;
 char Receive_Pixel_Map_State = 0;
 unsigned short Pixel_Map_Height;
 unsigned short Pixel_Map_Weight;
 
-const char text_11[32] = "无��信";
-const char text_12[64] = "通信丄1�71ￄ1�771ￄ1�71ￄ1�777";
-const char text_21[64] = "模型无运衄1�71ￄ1�771ￄ1�71ￄ1�777";
-const char text_22[64] = "模型运行丄1�71ￄ1�771ￄ1�71ￄ1�777";
-char text_57[32] = "文本项目输入";
-char text_58[32] = "文本项目显示";
-char text_513[32] = "文本项目回答";
+const char text_11[12] = "无通信";
+const char text_12[12] = "通信中";
+const char text_21[20] = "模型无运行";
+const char text_22[20] = "模型运行中";
+char text_57[24] = "文本项目输入";
+char text_58[24] = "文本项目显示";
+char text_513[24] = "文本项目回答";
 
-// 创建容器
+
 struct gtkwidgt_group
 {
     vector<GtkWidget *> widget;
@@ -79,17 +83,17 @@ char show_message(GtkWidget *parent,
 
     gtk_window_set_title(GTK_WINDOW(dialog), title);
 
-    gint response = gtk_dialog_run(GTK_DIALOG(dialog)); // 等待用户点击
-    // GtkResponseType;
+    gint response = gtk_dialog_run(GTK_DIALOG(dialog));
+
 
     char return_value = 0;
     switch (response)
     {
-    case -8: // GTK_RESPONSE_YES          = -8,
+    case -8: // GTK_RESPONSE_YES = -8,
         return_value = 1;
         break;
 
-    case -9: // GTK_RESPONSE_NO           = -9,
+    case -9: // GTK_RESPONSE_NO = -9,
         return_value = 0;
         break;
     }
@@ -118,7 +122,7 @@ void Socket_Thread()
 
     if (sockfd < 0)
     {
-        perror("[发��线程] socket 创建失败");
+        perror("[发送线程] socket 创建失败");
         return;
     }
 
@@ -139,7 +143,7 @@ void Socket_Thread()
         {
             while (connect(sockfd, (sockaddr *)&server, sizeof(server)) < 0)
             {
-                perror("[发��线程] 连接失败");
+                perror("[发送线程] 连接失败");
                 sleep(100);
                 IF_SELF_CONNECT = 1;
             }
@@ -169,10 +173,10 @@ void Socket_Thread()
             Send_Vector.insert(Send_Vector.end(), (char *)&si.action_num, (char *)&si.action_num + 1);
             Send_Vector.insert(Send_Vector.end(), (char *)&si.send_text_num, (char *)&si.send_text_num + 2);
 
-            Send_Vector.insert(Send_Vector.end(), (char *)&si.model_time, (char *)&si.model_time + 8);
+            Send_Vector.insert(Send_Vector.end(), (char *)&si.model_time, (char *)&si.model_time + 4);
 
             Send_Vector.insert(Send_Vector.end(), (char *)Waiting_Send_Action_List.data(), (char *)Waiting_Send_Action_List.data() + 12 * si.action_num);
-            Alreadly_Send_Action_List = Waiting_Send_Action_List;
+            Alreadly_Finish_Action_List = Waiting_Send_Action_List;
             Waiting_Send_Action_List.clear();
 
             Send_Vector.insert(Send_Vector.end(), (char *)Send_Text_List.data(), (char *)Send_Text_List.data() + sizeof(char) * si.send_text_num);
@@ -190,7 +194,7 @@ void Socket_Thread()
                 verification_count += 1;
                 if (verification_count > 1)
                 {
-                    show_message(input_output_group.widget[0], "严重错误", "网络传输丢包");
+                    show_message(input_output_group.widget[0], "错误", "网络传输丢包");
 
                     IF_SELF_COMMUNIATE = 0;
                     IF_NEED_COMMUNIATE = 0;
@@ -213,12 +217,12 @@ void Socket_Thread()
             memcpy((char *)&ro.image_width, Recv_Vector.data()+1, 2);
             memcpy((char *)&ro.image_height, Recv_Vector.data() + 3, 2);
             memcpy((char *)&ro.receive_text_num, Recv_Vector.data() + 5, 2);
-            memcpy((char *)&ro.code_time, Recv_Vector.data() + 7, 8);
+            memcpy((char *)&ro.code_time, Recv_Vector.data() + 7, 4);
             Recv_Vector.clear();
 
             if (ro.image_width > 4000 || ro.image_height > 3000)
             {
-                cout << "图片接收错误" << endl;
+                cout << "鍥剧墖鎺ユ敹閿欒" << endl;
             }
 
             int give_task_attention = 1 + Free_Total_Task_Attention / 3;
@@ -230,7 +234,7 @@ void Socket_Thread()
                 int already_read = 0;
                 while (already_read < ro.image_width * ro.image_height * 3)
                 {
-                    already_read += recv(sockfd, (char *)Receive_PixelMap.data() + already_read, ro.image_width * ro.image_height * 3 - already_read, 0); // 接收图片数据
+                    already_read += recv(sockfd, (char *)Receive_PixelMap.data() + already_read, ro.image_width * ro.image_height * 3 - already_read, 0);
                 }
 
                 Image_Scene new_image;
@@ -240,8 +244,8 @@ void Socket_Thread()
 
                 for(int a = 0; a < ro.execulute_action_num; a++)
                 {
-                    Model_Output_Action old_action = Alreadly_Send_Action_List[a];
-                    Node_Action_Attribute naa;
+                    Model_Output_Action old_action = Alreadly_Finish_Action_List[a];
+                    Node_Base_Action_Attribute naa;
                     naa.action_kind = old_action.action_kind;
                     naa.action_order = old_action.action_order;
                     naa.dwFlags = old_action.dwFlags;
@@ -251,7 +255,7 @@ void Socket_Thread()
                     naa.y = old_action.y;
 
                     General_Node action_node;
-                    Variable_Attribute va = {.node_action_attribute = naa};
+                    Link_Variable_Attribute va = {.node_action_attribute = naa};
                     action_node.Node_variable_attribute_list.push_back(va);
                     new_image.Action_Node_Idx[a] = create_a_General_Node(action_node);
                 }
@@ -261,7 +265,7 @@ void Socket_Thread()
                 Require_Object require_object;
                 require_object.require_kind = 1;
                 require_object.require_value = give_task_attention;
-                require_object.require_detail_kind = 1;
+                require_object.require_object_kind = 1;
                 require_object.require_id_or_idx = idx;
                 INDEX req_idx = create_a_Formal_Require_Object(require_object);
                 Value_Sort_Unit vsu;
@@ -292,7 +296,7 @@ void Socket_Thread()
                 Require_Object require_object;
                 require_object.require_kind = 1;
                 require_object.require_value = give_task_attention;
-                require_object.require_detail_kind = 3;
+                require_object.require_object_kind = 3;
                 require_object.require_id_or_idx = idx;
                 INDEX req_idx = create_a_Formal_Require_Object(require_object);
                 Value_Sort_Unit vsu;
@@ -465,7 +469,7 @@ static void on_button_clicked(GtkWidget *widget, gpointer data)
         IF_SELF_COMMUNIATE = 1;
         IF_NEED_COMMUNIATE = 1;
 
-        break;
+    break;
     case 2:
     {
         IF_SELF_WORKING = 1;
@@ -476,15 +480,14 @@ static void on_button_clicked(GtkWidget *widget, gpointer data)
         gtk_widget_show(input_output_group.widget[4]);
     }
     break;
-
     case 3:
         IF_NEED_CAPTURE = 1;
 
-        break;
+    break;
     case 4:
         IF_NEED_ACTION = 1;
 
-        break;
+    break;
     case 5:
     {
         GtkWidget *text_view = input_output_group.widget[6];
@@ -502,7 +505,7 @@ static void on_button_clicked(GtkWidget *widget, gpointer data)
             if (n <= 0)
             {
                 n = 0;
-                bool right = show_message(input_output_group.widget[0], "提示", "输入值要丄1�71ￄ1�771ￄ1�71ￄ1�7770＄1�71ￄ1�771ￄ1�71ￄ1�777");
+                bool right = show_message(input_output_group.widget[0], "提示", "输入值要为0？");
                 if (right == 1)
                     setup_thread(0);
             }
@@ -511,11 +514,10 @@ static void on_button_clicked(GtkWidget *widget, gpointer data)
         }
         else
         {
-            bool right = show_message(input_output_group.widget[0], "提示", "朢�大��为10");
+            bool right = show_message(input_output_group.widget[0], "提示", "最大值为10");
             setup_thread(10);
         }
     }
-
     break;
     case 6:
     {
@@ -547,9 +549,7 @@ static void on_button_clicked(GtkWidget *widget, gpointer data)
         text_display.Input_string = text_cur;
         INDEX idx = create_a_gtk3_text_display(text_display);
     }
-
     break;
-
     case 7:
     {
         GtkWidget *text_view_1 = input_output_group.widget[12];
@@ -564,15 +564,13 @@ static void on_button_clicked(GtkWidget *widget, gpointer data)
 
         if (No < 0 || No > Gtk3_Text_Display_Storage.size())
         {
-            show_message(input_output_group.widget[0], "提示", "无对应输入�ￄ1�71ￄ1�771ￄ1�71ￄ1�777");
+            show_message(input_output_group.widget[0], "提示", "无对应输入值");
             break;
         }
 
         delete_a_gtk3_text_display(No);
     }
-
     break;
-
     case 8:
     {
         GtkWidget *text_view = input_output_group.widget[7];
@@ -586,9 +584,7 @@ static void on_button_clicked(GtkWidget *widget, gpointer data)
         g_free(text);
 
     }
-
     break;
-
     case 9:
     {
         GtkWidget *text_view = input_output_group.widget[8];
@@ -607,11 +603,8 @@ static void on_button_clicked(GtkWidget *widget, gpointer data)
     }
 
     break;
-
     case 0:
-
-        break;
-
+    break;
     case -1:
     {
         IF_SELF_COMMUNIATE = 0;
@@ -636,16 +629,14 @@ static void on_button_clicked(GtkWidget *widget, gpointer data)
     }
 
     break;
-
     case -3:
         IF_NEED_CAPTURE = 0;
 
-        break;
-
+    break;
     case -4:
         IF_NEED_ACTION = 0;
 
-        break;
+    break;
     }
 }
 
@@ -735,12 +726,12 @@ GtkWidget *create_number_input(
 
     gtk_widget_set_size_request(entry, width, height);
 
-    // 设置初始倄1�71ￄ1�771ￄ1�71ￄ1�777
+    
     char buf[32];
     snprintf(buf, sizeof(buf), "%d", init_value);
     gtk_entry_set_text(GTK_ENTRY(entry), buf);
 
-    // 限制只能输入数字
+
     g_signal_connect(entry, "insert-text", G_CALLBACK(only_allow_digits), NULL);
 
     gtk_fixed_put(GTK_FIXED(parent), entry, left, top);
@@ -858,23 +849,23 @@ gboolean update_timeout(gpointer user_data)
     GtkWidget *label;
     char kind;
 
-    Code_Time += 100;
+    Code_Time += 1;
 
     if (IF_SELF_WORKING)
     {
-        CURRENT_MODEL_TIME += 100;
+        CURRENT_MODEL_TIME += 1;
         current_0_1s_memory_value.exchange(0);
         scene_clean();
     }
 
-    if (*(long long *)(use_time + time_curr * 2) != CURRENT_MODEL_TIME & time_update_gap)
+    if (use_time[time_curr] != CURRENT_MODEL_TIME & time_update_gap)
     {
         if (time_curr >= 3)
             time_curr = 0;
         else
             time_curr += 1;
 
-        *(long long *)(use_time + time_curr * 2) = CURRENT_MODEL_TIME & time_update_gap;
+        use_time[time_curr] = CURRENT_MODEL_TIME & time_update_gap;
     }
 
     for (int q = 0; q < update_group.widget.size(); q++)
@@ -952,7 +943,6 @@ void create_update(GtkWidget *widget, char kind, void *source)
 
 void init_model()
 {
-    
     load_model_record();
     load_pre_load_file();
     load_image_enter_line();
@@ -961,25 +951,21 @@ void init_model()
     
     thread base_t1(Socket_Thread);
     base_t1.detach();
-
     
     thread base_t2(Disk_Thread);
     base_t2.detach();
-
     
     thread base_t3(Pack_Clear_Thread);
     base_t3.detach();
-
     
-    Image_Scene_Storage.resize(1);
-
-    Text_Scene_Storage.resize(1);
-
-    Gtk3_Text_Display_Storage.resize(1);
 
     General_Node_Storage.resize(1);
-
     General_Scene_Storage.resize(1);
+    Image_Scene_Storage.resize(1);
+    Time_Scene_Storage.resize(1);
+    Time_Scene_Storage.push_back(OVERALL_TIME_SCENE);
+    Text_Scene_Storage.resize(1);
+    Gtk3_Text_Display_Storage.resize(1);
 }
 
 void control_interface(int argc, char *argv[])
@@ -999,15 +985,15 @@ void control_interface(int argc, char *argv[])
     input_output_group.widget[1] = init_interface;
 
     
-    const char text_1[32] = "建立通信";
+    const char text_1[16] = "建立通信";
     GtkWidget *button_1 = create_button(init_interface, 100, 160, 100, 130, 1, text_1);
 
     GtkWidget *display_11 = create_text_fixed_display(init_interface, 100, 160, 150, 180, text_11);
     input_output_group.widget[2] = display_11;
 
     
-    const char text_2[32] = "模型启动";
-    const char text_20[32] = "模型关闭";
+    const char text_2[16] = "模型启动";
+    const char text_20[16] = "模型关闭";
     GtkWidget *button_2 = create_button(init_interface, 200, 260, 100, 130, 2, text_2);
     input_output_group.widget[5] = button_2;
 
@@ -1018,107 +1004,107 @@ void control_interface(int argc, char *argv[])
     input_output_group.widget[3] = display_21;
 
     
-    const char text_30[32] = "运行资源分配";
+    const char text_30[24] = "运行资源分配";
 
-    const char text_31[64] = "当前使用线程敄1�71ￄ1�771ￄ1�71ￄ1�777";
+    const char text_31[24] = "当前使用线程数";
     GtkWidget *display_31 = create_number_display(init_interface, 500, 560, 50, 80);
     create_update(display_31, 3, &Calculate_Thread_Num);
 
-    const char text_32[64] = "更改线程敄1�71ￄ1�771ￄ1�71ￄ1�777";
+    const char text_32[24] = "更改线程数";
     GtkWidget *button_32 = create_button(init_interface, 500, 560, 100, 130, 5, text_32);
     GtkWidget *input_32 = create_text_input(init_interface, 500, 560, 150, 180, "10");
     input_output_group.widget[6] = input_32;
 
-    const char text_33[32] = "当前内存上限";
+    const char text_33[24] = "当前内存上限";
     GtkWidget *button_33 = create_button(init_interface, 300, 360, 150, 180, 8, text_33);
     GtkWidget *input_33 = create_text_input(init_interface, 300, 360, 200, 230, "24");
     input_output_group.widget[7] = input_33;
 
-    const char text_34[64] = "当前内存釄1�71ￄ1�771ￄ1�71ￄ1�777:G";
+    const char text_34[24] = "当前内存量:G";
     GtkWidget *text_display_34 = create_text_fixed_display(init_interface, 300, 360, 250, 280, text_34);
     GtkWidget *num_display_34 = create_number_display(init_interface, 300, 360, 300, 330);
     create_update(num_display_34, 3, &CURRENT_SYSTEM_MEMORY);
 
-    const char text_35[64] = "当前包上附1�71ￄ1�771ￄ1�71ￄ1�777";
+    const char text_35[24] = "当前包上限";
     GtkWidget *button_35 = create_button(init_interface, 400, 460, 150, 180, 9, text_35);
     GtkWidget *num_input_35 = create_text_input(init_interface, 400, 460, 200, 230, "1400");
     input_output_group.widget[8] = num_input_35;
 
-    const char text_36[64] = "实际包量:丄1�71ￄ1�771ￄ1�71ￄ1�777";
+    const char text_36[24] = "实际包量:万";
     GtkWidget *text_display_36 = create_text_fixed_display(init_interface, 400, 460, 250, 280, text_36);
     GtkWidget *num_display_36 = create_number_display(init_interface, 400, 460, 300, 330);
     create_update(num_display_36, 3, &Current_Pack_Num);
 
-    const char text_37[64] = "十秒内图像节点生成数";
+    const char text_37[32] = "十秒内图像节点生成数";
 
-    const char text_38[64] = "十秒内概念节点生成数";
+    const char text_38[32] = "十秒内概念节点生成数";
 
-    const char text_39[64] = "十秒内文本节点生成数";
+    const char text_39[32] = "十秒内文本节点生成数";
 
-    
-    const char text_60[64] = "运行状��监掄1�71ￄ1�771ￄ1�71ￄ1�777";
 
-    const char text_61[64] = "已运行模型时闄1�71ￄ1�771ￄ1�71ￄ1�777";
+    const char text_60[24] = "运行状态监控";
+
+    const char text_61[24] = "已运行模型时间";
     GtkWidget *display_61 = create_number_display(init_interface, 100, 160, 50, 80);
-    create_update(display_61, 3, &Code_Time);
+    create_update(display_61, 2, &Code_Time);
 
-    const char text_64[64] = "当前模型时间";
+    const char text_64[24] = "当前模型时间";
     GtkWidget *display_64 = create_number_display(init_interface, 200, 260, 50, 80);
-    create_update(display_64, 3, &CURRENT_MODEL_TIME);
+    create_update(display_64, 2, &CURRENT_MODEL_TIME);
 
-    const char text_62[64] = "已存储节点数釄1�71ￄ1�771ￄ1�71ￄ1�777";
+    const char text_62[24] = "已存储节点数量";
     create_text_fixed_display(init_interface, 300, 360, 100, 130, text_62);
     GtkWidget *display_62 = create_number_display(init_interface, 300, 360, 50, 80);
     create_update(display_62, 2, &NEWIST_USEFUL_ID);
 
-    const char text_63[64] = "记录字符敄1�71ￄ1�771ￄ1�71ￄ1�777";
+    const char text_63[24] = "记录字符数";
     create_text_fixed_display(init_interface, 400, 460, 100, 130, text_63);
     GtkWidget *display_63 = create_number_display(init_interface, 400, 460, 50, 80);
     create_update(display_63, 2, &ALL_NUM_OF_CH);
 
-    const char text_65[64] = "上次传输的间隄1�71ￄ1�771ￄ1�71ￄ1�777";
+    const char text_65[24] = "上次传输的间隔";
     GtkWidget *text_display_65 = create_text_fixed_display(init_interface, 100, 160, 250, 280, text_65);
     GtkWidget *display_65 = create_number_display(init_interface, 100, 160, 200, 230);
     create_update(display_65, 2, &Last_Gap_Model_Time);
 
     
-    const char text_40[64] = "ģ�Ͳ�������";
-    const char text_41[64] = "��ģ��С����ÿ��";
-    const char text_42[64] = "��ģ�������ÿ��";
-    const char text_43[64] = "属��生成率";
-    const char text_44[64] = "图像生成玄1�71ￄ1�771ￄ1�71ￄ1�777";
-    const char text_45[64] = "文本生成玄1�71ￄ1�771ￄ1�71ￄ1�777";
-    const char text_46[64] = "认知生成玄1�71ￄ1�771ￄ1�71ￄ1�777";
+    const char text_40[24] = "模型参数控制";
+    const char text_41[32] = "建模最小数量每秒";
+    const char text_42[32] = "建模最大数量每秒";
+    const char text_43[24] = "属性生成率";
+    const char text_44[24] = "图像生成率";
+    const char text_45[24] = "文本生成率";
+    const char text_46[24] = "认知生成率";
 
-    const char text_47[64] = "��������Ϊ����";
+    const char text_47[32] = "随机输出行为倾向";
     const char text_48[24] = "对象";
-    const char text_49[24] = "ֵ";
+    const char text_49[24] = "值";
 
     
-    const char text_50[64] = "文本对话控制";
+    const char text_50[24] = "文本对话控制";
 
     const char text_51[24] = "追求目标";
     const char text_52[24] = "维持行为";
     const char text_53[24] = "解释文本";
     const char text_54[24] = "求知文本";
-    const char text_55[64] = "赋予对象属�ￄ1�71ￄ1�771ￄ1�71ￄ1�777";
+    const char text_55[24] = "赋予对象属性";
     const char text_56[24] = "回答对话";
 
     GtkWidget *input_57 = create_text_input(init_interface, 100, 300, 400, 600, text_57);
     input_output_group.widget[7] = input_57;
-    const char text_59[64] = "确认";
+    const char text_59[8] = "确认";
     GtkWidget *button_59 = create_button(init_interface, 100, 160, 350, 380, 6, text_59);
     input_output_group.widget[8] = button_59;
-    const char text_510[64] = "操作类型";
+    const char text_510[16] = "操作类型";
     GtkWidget *input_510 = create_text_input(init_interface, 200, 260, 350, 380, text_510);
     input_output_group.widget[9] = input_510;
 
     GtkWidget *output_58 = create_text_flowed_display(init_interface, 350, 550, 400, 600, text_58);
     input_output_group.widget[10] = output_58;
-    const char text_511[64] = "删除";
+    const char text_511[8] = "删除";
     GtkWidget *button_511 = create_button(init_interface, 350, 410, 350, 380, 7, text_511);
     input_output_group.widget[11] = button_511;
-    const char text_512[64] = "删除项目";
+    const char text_512[16] = "删除项目";
     GtkWidget *input_512 = create_text_input(init_interface, 450, 510, 350, 380, text_512);
     input_output_group.widget[12] = input_512;
 
@@ -1137,7 +1123,6 @@ void control_interface(int argc, char *argv[])
 
 void end_model()
 {
-    
     IF_NEED_WORKING = 0;
     IF_SELF_TURN_OFF = 0;
     IF_SELF_COMMUNIATE = 0;
@@ -1152,7 +1137,7 @@ void end_model()
     save_record_model();
 }
 
-
+//涓叡楝肩鑸殑缁熸不蹇呯劧鐏骸锛屽畠浠墍鍋氱殑鍏ㄩ儴缃伓蹇呯劧杩庢潵褰诲簳鍦版竻绠楋紒
 
 int main(int argc, char *argv[])
 {

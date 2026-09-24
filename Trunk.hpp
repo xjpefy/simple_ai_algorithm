@@ -9,38 +9,33 @@
 
 #include "Root.hpp"
 
-// 图形数据存储
 
-// 方向种类
-static const char Dir_kind[32] = {0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8,
+
+static const char direction_kind[32] = {0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8,
     9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 0};
 
-// 对应方向数量＄1�71ￄ1�7732方向 ↄ1�71ￄ1�77 16方向 ↄ1�71ￄ1�77 每象附1�71ￄ1�774丄1�71ￄ1�77(因为象限会正贄1�71ￄ1�77)
-static const float kBorder[8] = {0.1989f, 0.422f, 0.6682f, 1.0f, 1.4966f, 2.422f, 5.0273f, 9999.0f};
+static const float angle_Border[8] = {0.1989f, 0.422f, 0.6682f, 1.0f, 1.4966f, 2.422f, 5.0273f, 9999.0f};
 
-// 长度范围计算，用于映射的区间下限
-vector<int> thresholds = {0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192};
+vector<int> length_thresholds = {0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192};
 
-// 用于返回长度的区间�ￄ1�71ￄ1�77
-vector<int> categories = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+vector<int> length_categories = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
-// 方向计算区间
-char fast_dir(float diff_x, float diff_y) // 与原点的差异
+
+inline char fast_dir(float diff_x, float diff_y)
 {
     if (diff_x == 0 && diff_y == 0)
-        return 0; // 0属于丢�个像素点
+        return 0;
 
-    // 确定象限偏移
     int base = 0;
     if (diff_x < 0)
-        base += 8; // 左半琄1�71ￄ1�77
+        base += 8;
     if (diff_y < 0)
-        base = 24 - base; // 下半琄1�71ￄ1�77
+        base = 24 - base;
 
     float ax = fabsf(diff_x);
     float ay = fabsf(diff_y);
 
-    // 决定 ratio
+    // ratio
     float r;
 
     if (ax != 0)
@@ -52,47 +47,41 @@ char fast_dir(float diff_x, float diff_y) // 与原点的差异
 
     int idx = 0;
     for (; idx < 8; idx++)
-        if (r <= kBorder[idx])
+        if (r <= angle_Border[idx])
             break;
 
-    // 如果圄1�71ￄ1�772〄1�71ￄ1�774象限，就霢�要旋转象限方向编叄1�71ￄ1�77
     if ((diff_x < 0 && diff_y > 0) || (diff_x > 0 && diff_y < 0))
         idx = 7 - idx;
 
     char dir = base + idx;
 
-    dir = Dir_kind[dir];
+    dir = direction_kind[dir];
 
-    return dir; // 方向 0~15
-} // 方向计算函数结束
-
-// 长度查找
-int Length_trans_Range(int value) // 返回值所属的类别
-{
-    // 二分查找找到第一个大于等于value的阈值位罄1�71ￄ1�77
-    auto it = lower_bound(thresholds.begin(), thresholds.end(), value);
-
-    // 返回对应的类刄1�71ￄ1�77
-    int index = distance(thresholds.begin(), it);
-
-    return categories[index];
+    return dir;
 }
 
-// 范围转长庄1�71ￄ1�77
+
+inline int Length_trans_Range(int value)
+{
+    auto it = lower_bound(length_thresholds.begin(), length_thresholds.end(), value);
+
+    int index = distance(length_thresholds.begin(), it);
+
+    return length_categories[index];
+}
+
+
 int Range_trans_Length(int value)
 {
-    // 二分查找找到第一个大于等于value的阈值位罄1�71ￄ1�77
-    auto it = lower_bound(categories.begin(), categories.end(), value);
+    auto it = lower_bound(length_categories.begin(), length_categories.end(), value);
 
-    // 返回对应的类刄1�71ￄ1�77
-    int index = distance(categories.begin(), it);
+    int index = distance(length_categories.begin(), it);
 
-    return thresholds[index];
+    return length_thresholds[index];
 }
 
-// 得到两点之间的方向距禄1�71ￄ1�77
 inline void get_two_point_direction_distance(int x0, int y0, int x1, int y1,
-                                             char &return_direction, char &return_distance)
+    char &return_direction, char &return_distance)
 {
     int dif_x = x1 - x0;
     int dif_y = y1 - y0;
@@ -101,30 +90,27 @@ inline void get_two_point_direction_distance(int x0, int y0, int x1, int y1,
     return_distance = Length_trans_Range(sqrt(dif_x * dif_x + dif_y * dif_y));
 }
 
-// 得到在原点方向距离下的点
+
 inline void get_another_point(int x0, int y0, char direction_range, char distance_range,
     int &return_x1, int &return_y1)
 {
-    // 方向角度转换弧度
-    float angle = direction_range * 22.5 / (2 * 3.1415f); // 角度/2t=弧度
+    float angle = direction_range * 22.5 / (2 * 3.1415f);
 
     int distance = Range_trans_Length(distance_range);
     int x_add = distance * 0.7;
 
-    // 计算斜率前置釄1�71ￄ1�77
     float dx = cosf(angle);
     float dy = sinf(angle);
 
-    // 水平角度情况
     if (fabsf(dx) < 1e-6f)
     {
         return_x1 += distance;
-        return_y1 = y0; // 差不多是原y
+        return_y1 = y0;
 
         return;
     }
 
-    float slope = dy / dx; // 斜率
+    float slope = dy / dx;
 
     return_y1 = y0 + slope * (return_x1 - x0);
 
@@ -148,7 +134,7 @@ void coordinate_exchange(int origin_x, int origin_y, int origin_size,
     object_y = origin_y / compare_size;
 }
 
-// 四舍五入
+
 int approximate(float value)
 {
     int un_float = (int)value;
@@ -169,7 +155,7 @@ int approximate(float value)
     }
 }
 
-// 连线计算
+
 void two_point_to_line(
     short x0, short y0,
     short x1, short y1,
@@ -180,15 +166,15 @@ void two_point_to_line(
 
     return_line.reserve(dx + dy);
 
-    float slope = dy / dx; // 斜率
+    float slope = dy / dx;
 
     for (int q = 0; q < dx; q++)
     {
         float x = x0 + q;
-        float y = y0 + slope * q; // y点�ￄ1�71ￄ1�77
+        float y = y0 + slope * q;
         Point_2d p2;
 
-        if (x - (int)x < 0.5) // 求近伄1�71ￄ1�77
+        if (x - (int)x < 0.5)
             p2.x = x;
         else
             p2.x = x + 1;
@@ -202,7 +188,7 @@ void two_point_to_line(
     }
 }
 
-// 矩形空间界限
+
 struct rectangle_border
 {
     vector<Point_2d> a_line;
@@ -265,14 +251,13 @@ struct image_object_locate_info
 };
 
 
-image_object_locate_info image_object_locate(INDEX self_idx,   // 本体
-    INDEX object_idx) // 目标
+image_object_locate_info image_object_locate(INDEX self_idx,
+    INDEX object_idx)
 {
-    
     image_object_locate_info info;
 
-    Node_Image_Attribute object_attribute = read_a_Node_Image_Attribute(object_idx);
-    Node_Image_Attribute self_attribute = read_a_Node_Image_Attribute(self_idx);
+    Node_Image_Single_Attribute object_attribute = read_a_Node_Image_Attribute(object_idx);
+    Node_Image_Single_Attribute self_attribute = read_a_Node_Image_Attribute(self_idx);
 
     char object_size = object_attribute.observe_size;
     char self_size = self_attribute.observe_size;
@@ -362,7 +347,7 @@ void cental_feature(INDEX node_idx)
 
     for (short fea = 0; fea < neuro_head.used_item_num;)
     {
-        Attribute_Head_Item attribute_head = attribute_head_read(ptr);
+        Attribute_Head attribute_head = attribute_head_read(ptr);
 
         if (attribute_head.attribute_kind == 1)
         {
@@ -379,18 +364,16 @@ void cental_feature(INDEX node_idx)
             Neuro_Time_Item time_condition;
             time_condition.time_left_range;
             time_condition.time_scale;
-            auto id = time_condition.related_id;
+            auto id = time_condition.target_id;
 
             check_id.push_back(id);
         }
 
-        fea += attribute_head.item_num;
-        ptr += attribute_head.item_num;
     }
 
 }
 
-//
+
 void produce_excellent_calculate(INDEX node_idx)
 {
     General_Node curr_node = read_a_General_Node(node_idx);
@@ -478,28 +461,27 @@ vector<ID> Find_Common_Element_More(vector<ID> neuro_list)
 }
 
 
-vector<Neuro_Link_Attribute> Find_Common_Relation_Rate(vector<Neuro_Link_Attribute> link_list)
+vector<Link_Variable_Attribute> Find_Common_Relation_Rate(vector<Link_Variable_Attribute> link_list)
 {
-    vector<Neuro_Link_Attribute> return_relation;
+    vector<Link_Variable_Attribute> return_relation;
 
-    if (link_list[0].image_attribute.item_is_image == 1)
+    if (link_list[0].neuro_image_item.item_is_image == 1)
     {
         ;
     }
 
-    for (Neuro_Link_Attribute a_link : link_list)
+    for (Link_Variable_Attribute a_link : link_list)
     {
         ;
     }
 
     return return_relation;
-
 }
 
 
 INDEX new_upper_network_node_generate(
-    vector<INDEX> material_node_list,
-    char generate_kind, INDEX scene_idx, char scene_kind)
+    vector<INDEX> material_node_list, char generate_kind,
+    INDEX scene_idx, char scene_kind)
 {
     char material_size = material_node_list.size();
 
@@ -518,7 +500,7 @@ INDEX new_upper_network_node_generate(
 
             link_object.link_Kind = 001;
             link_object.link_idx_or_id = i;
-            link_object.link_value = 1;
+            link_object.link_value_I = 1;
 
             new_node.Node_variable_attribute_list[q].link_node_attribute = link_object;
         }
@@ -527,7 +509,7 @@ INDEX new_upper_network_node_generate(
     }
     else if (generate_kind == 2)
     {
-        Image_Scene& curr_map = Image_Scene_Storage[scene_idx];
+        Image_Scene& curr_image = Image_Scene_Storage[scene_idx];
 
         General_Node& new_node = General_Node_Storage[new_idx];
 
@@ -544,15 +526,15 @@ INDEX new_upper_network_node_generate(
 
             link_object.link_Kind = 2;
             link_object.link_idx_or_id = new_idx;
-            Variable_Attribute fo{.link_node_attribute = link_object};
+            Link_Variable_Attribute fo{.link_node_attribute = link_object};
             material_node.Node_variable_attribute_list.push_back(fo);
 
             link_object.link_Kind = 1;
             link_object.link_idx_or_id = i;
-            Variable_Attribute fo_{.link_node_attribute = link_object};
+            Link_Variable_Attribute fo_{.link_node_attribute = link_object};
             new_node.Node_variable_attribute_list.push_back(fo_);
 
-            Node_Image_Attribute obj_att = read_a_Node_Image_Attribute(i);
+            Node_Image_Single_Attribute obj_att = read_a_Node_Image_Attribute(i);
 
             x_sum += obj_att.block_num * obj_att.x;
             y_sum += obj_att.block_num * obj_att.y;
@@ -563,17 +545,18 @@ INDEX new_upper_network_node_generate(
         x_sum = x_sum / all_occupy;
         y_sum = y_sum / all_occupy;
 
-        Node_Image_Attribute add_att; // = Node_Image_Attribute_List[create_a_Node_Image_Attribute(new_idx)];
+        Node_Image_Single_Attribute add_att; 
         add_att.block_num = all_occupy;
         add_att.x = x_sum;
         add_att.y = y_sum;
         new_node.complete_or_probability = 1;
+        create_a_Node_Image_Attribute( new_idx , add_att);
 
         for (int t = 0; t < material_size; t++)
         {
             INDEX i = material_node_list[t];
             General_Node &material_node = General_Node_Storage[i];
-            Node_Image_Attribute att = read_a_Node_Image_Attribute(i);
+            Node_Image_Single_Attribute att = read_a_Node_Image_Attribute(i);
 
             int dif_x = x_sum - att.x;
             int dif_y = y_sum - att.y;
@@ -581,7 +564,7 @@ INDEX new_upper_network_node_generate(
             add_att.contain_distance += sqrt(dif_x * dif_x + dif_y * dif_y);
         }
 
-        curr_map.Node_combo_find_repeat.insert(material_node_list);
+        curr_image.Node_combo_find_repeat.insert(material_node_list);
 
         char require_number = 1;
         char require_idx = 0;
@@ -595,20 +578,20 @@ INDEX new_upper_network_node_generate(
         //
 
         char require_distance =
-            curr_map.require_distance;
+            curr_image.require_distance;
 
         x_sum /= require_distance;
         y_sum /= require_distance;
 
-        int require_width = curr_map.width / require_distance;
+        int require_width = curr_image.width / require_distance;
 
-        curr_map.Node_space_form_record_list[y_sum * require_width + x_sum].push_back(new_idx);
+        curr_image.Space_form_record[0].record_list[y_sum * require_width + x_sum].push_back(new_idx);
     }
     else if (generate_kind == 3)
     {
         Text_Scene &curr_text = Text_Scene_Storage[scene_idx];
 
-        vector<vector<INDEX>> text_infer_node_list = curr_text.Text_node_space_from_record_list;
+        vector<vector<INDEX>> text_infer_node_list = curr_text.Space_form_record[0].record_list;
 
         General_Node &new_node = General_Node_Storage[new_idx];
 
@@ -624,40 +607,39 @@ INDEX new_upper_network_node_generate(
 
             link_object.link_Kind = 001;
             link_object.link_idx_or_id = new_idx;
-            link_object.link_value = 1;
-            Variable_Attribute fo{.link_node_attribute = link_object};
+            link_object.link_value_I = 1;
+            Link_Variable_Attribute fo{.link_node_attribute = link_object};
 
             material_node.Node_variable_attribute_list.push_back(fo);
 
             link_object.link_Kind = 002;
             link_object.link_idx_or_id = i;
-            link_object.link_value = 1;
-            Variable_Attribute fo_{.link_node_attribute = link_object};
+            link_object.link_value_I = 1;
+            Link_Variable_Attribute fo_{.link_node_attribute = link_object};
 
             new_node.Node_variable_attribute_list.push_back(fo_);
 
-            Node_Text_Attribute att = read_a_Node_Text_Attribute(i);
-            distance_sum += att.block_num * att.idx;
+            Node_Text_Single_Attribute att = read_a_Node_Text_Attribute(i);
+            distance_sum += att.block_num * att.position;
             all_occupy += att.block_num;
         }
 
         
         distance_sum = distance_sum / all_occupy;
 
-        Node_Text_Attribute add_att;
+        Node_Text_Single_Attribute add_att;
         add_att.block_num = all_occupy;
-        add_att.idx = distance_sum;
+        add_att.position = distance_sum;
         create_a_Node_Text_Attribute(new_idx, add_att);
 
 
-        INDEX add_pos = add_att.idx;
+        INDEX add_pos = add_att.position;
         add_pos = add_pos / 8;
 
         text_infer_node_list[add_pos].push_back(new_idx);
     }
     else if (generate_kind == 4)
     {
-
         General_Node& new_node = General_Node_Storage[new_idx];
 
         int all_occupy = 0;
@@ -672,33 +654,31 @@ INDEX new_upper_network_node_generate(
 
             link_object.link_Kind = 001;
             link_object.link_idx_or_id = new_idx;
-            link_object.link_value = 1;
-            Variable_Attribute flex = {.link_node_attribute = link_object};
+            link_object.link_value_I = 1;
+            Link_Variable_Attribute flex = {.link_node_attribute = link_object};
 
             material_node.Node_variable_attribute_list.push_back(flex);
 
             link_object.link_Kind = 003;
             link_object.link_idx_or_id = i;
-            link_object.link_value = 1;
+            link_object.link_value_I = 1;
             flex = {.link_node_attribute = link_object};
 
             new_node.Node_variable_attribute_list.push_back(flex);
 
-            Node_Time_Attribute att = read_a_Node_Time_Attribute(i);
+            Node_Time_Single_Attribute att = read_a_Node_Time_Attribute(i);
 
             long long material_time = 0;
 
-            material_time = att.front_time;
-            material_time = material_time << 32;
-            material_time |= att.back_time;
+            material_time = att.time;
 
             // distance_sum += att.node_num * material_time;
             // all_occupy += att.node_num;
         }
 
-        Node_Time_Attribute add_att;
+        Node_Time_Single_Attribute add_att;
         // add_att.node_num = all_occupy;
-        add_att.back_time = distance_sum;
+        add_att.time = distance_sum;
         create_a_Node_Time_Attribute(new_idx, add_att);
 
         //
@@ -709,14 +689,23 @@ INDEX new_upper_network_node_generate(
 
 
 void new_neuro_generate_record(
-    INDEX upper_node_idx, char generate_node_kind,
-    float rich_rate)
+    INDEX upper_node_idx, float rich_rate)
 {
     unsigned char allow_value = 255 * rich_rate;
 
     General_Node &upper_node = General_Node_Storage[upper_node_idx];
+    char generate_node_kind = upper_node.node_kind;
 
-    vector<Variable_Attribute> &upper_link_object_list = upper_node.Node_variable_attribute_list;
+    vector<Link_Variable_Attribute> &Node_variable_attribute_list = upper_node.Node_variable_attribute_list;
+
+    vector<Neuro_Union_Attribute> lower_general_condition_result_list;
+    vector<Neuro_Union_Attribute> upper_general_condition_result_list;
+    Attribute_Head upper_attribute_head;
+
+    for(int q = 0; q < Node_variable_attribute_list.size(); q++)
+    {
+        upper_general_condition_result_list;
+    }
 
     if (generate_node_kind == 1)
     {
@@ -726,209 +715,110 @@ void new_neuro_generate_record(
         ID get_id = new_neuro_create(1, neuro_desc);
         upper_node.self_id = get_id;
 
-        Attribute_Head_Item upper_attribute_head;
         upper_attribute_head.attribute_kind = 2;
-
-        vector<General_Condition> upper_general_condition_list;
-        vector<General_Result> upper_general_result_list;
 
         vector<int> add_item;
 
         char lower_node_num = 0;
 
-        for (int q = 0; q < upper_link_object_list.size(); q++)
+        for (int q = 0; q < Node_variable_attribute_list.size(); q++)
         {
-            Link_Node_Attribute la = upper_link_object_list[q].link_node_attribute;
+            Link_Node_Attribute lna = Node_variable_attribute_list[q].link_node_attribute;
 
-            if (la.link_Attribute != 2 && la.link_Kind != 1)
+            if (lna.is_node_link != 4 && lna.link_Kind != 2)
                 continue;
 
-            INDEX write_pos = la.link_idx_or_id;
+            INDEX write_pos = lna.link_idx_or_id;
             ID material_id = General_Node_Storage[write_pos].self_id;
 
             if (rand_0_to_255() < allow_value)
             {
                 lower_node_num += 1;
 
-                Attribute_Head_Item lower_attribute_head;
+                Attribute_Head lower_attribute_head;
                 lower_attribute_head.attribute_kind = 2;
 
-                vector<General_Condition> lower_general_condition_list;
-                vector<General_Result> lower_general_result_list;
-
-                for (int w = 0; w < upper_link_object_list.size(); w++)
+                for (int w = 0; w < Node_variable_attribute_list.size(); w++)
                 {
-                    if (la.link_Attribute != 2 && la.link_Kind != 1 && q == w)
+                    if (lna.is_node_link != 4 && lna.link_Kind != 2 && q == w)
                         continue;
 
-                    INDEX con_pos = upper_link_object_list[w].link_node_attribute.link_idx_or_id;
+                    INDEX con_pos = Node_variable_attribute_list[w].link_node_attribute.link_idx_or_id;
 
                     image_object_locate_info space_feature = image_object_locate(write_pos, con_pos);
 
-                    Neuro_Image_Item image_comdition;
+                    Neuro_Image_Item image_condition;
 
-                    image_comdition.direction = space_feature.direction;
-                    image_comdition.distance = space_feature.distance;
-                    image_comdition.related_scale = space_feature.relative_scale;
-                    image_comdition.related_id = General_Node_Storage[con_pos].self_id;
+                    image_condition.direction = space_feature.direction;
+                    image_condition.distance = space_feature.distance;
+                    image_condition.related_scale = space_feature.relative_scale;
+                    image_condition.target_id = General_Node_Storage[con_pos].self_id;
 
-                    General_Condition condition = {.image_condition = image_comdition};
-                    lower_general_condition_list.push_back(condition);
+                    Neuro_Union_Attribute condition = {.image_item = image_condition};
+                    lower_general_condition_result_list.push_back(condition);
 
                     lower_attribute_head.condition_num += 1;
                 }
 
-                Neuro_Image_Item result_image;
+                Neuro_Image_Item image_result;
                 image_object_locate_info space_feature;
                 space_feature = image_object_locate(write_pos, upper_node_idx);
 
-                result_image.direction = space_feature.direction;
-                result_image.distance = space_feature.distance;
-                result_image.related_scale = space_feature.relative_scale;
-                result_image.related_id = get_id;
+                image_result.direction = space_feature.direction;
+                image_result.distance = space_feature.distance;
+                image_result.related_scale = space_feature.relative_scale;
+                image_result.target_id = get_id;
 
-                General_Result result = {.image_result = result_image};
-                lower_general_result_list.push_back(result);
+                Neuro_Union_Attribute result = {.image_item = image_result};
+                lower_general_condition_result_list.push_back(result);
 
                 lower_attribute_head.result_num += 1;
 
-                general_attribute_put(lower_attribute_head, add_item, lower_general_condition_list, lower_general_result_list);
-                neuro_attribute_write(material_id, add_item, 0, 1);
+                Simple_Neuro_Attribute_write(material_id, 0, 1, lower_attribute_head,
+                    lower_general_condition_result_list);
             }
         }
 
         add_item.clear();
 
-        for (int a = 0; a < lower_node_num; a++)
-        {
-            general_attribute_put(upper_attribute_head, add_item, upper_general_condition_list, upper_general_result_list);
-            neuro_attribute_write(get_id, add_item, 0, 1);
-        }
-
         ID_Find_General_Node[get_id].push_back(upper_node_idx);
-    }
-    else if (generate_node_kind == 2)
+
+    } else if (generate_node_kind == 2)
     {
-        Neuro_Text_Desc text_desc;
-        Neuro_Desc neuro_desc = {.text_desc = text_desc};
+        Neuro_Time_Desc time_desc;
+        Neuro_Desc neuro_desc = {.time_desc = time_desc};
 
         ID get_id = new_neuro_create(2, neuro_desc);
         upper_node.self_id = get_id;
 
-        Attribute_Head_Item upper_attribute_head;
-        upper_attribute_head.attribute_kind = 2;
-
-        vector<General_Condition> upper_general_condition_list;
-        vector<General_Result> upper_general_result_list;
+        upper_attribute_head.attribute_kind = 3;
 
         vector<int> add_item;
 
         char lower_node_num = 0;
 
-        for (int q = 0; q < upper_link_object_list.size(); q++)
+        for (int q = 0; q < Node_variable_attribute_list.size(); q++)
         {
-            Link_Node_Attribute lo = upper_link_object_list[q].link_node_attribute;
+            Link_Node_Attribute lna = Node_variable_attribute_list[q].link_node_attribute;
 
-            if (lo.link_Kind != 1 && lo.link_Attribute != 2)
+            if (lna.is_node_link != 4 && lna.link_Kind != 2)
                 continue;
 
-            INDEX wri_pos = lo.link_idx_or_id;
+            INDEX wri_pos = lna.link_idx_or_id;
             ID material_id = General_Node_Storage[wri_pos].self_id;
 
             if (rand_0_to_255() < allow_value)
             {
                 lower_node_num += 1;
 
-                Attribute_Head_Item lower_attribute_head;
+                Attribute_Head lower_attribute_head;
                 lower_attribute_head.attribute_kind = 2;
 
-                vector<General_Condition> lower_general_condition_list;
-                vector<General_Result> lower_general_result_list;
-
-                for (int w = 0; w < upper_link_object_list.size(); w++)
+                for (int w = 0; w < Node_variable_attribute_list.size(); w++)
                 {
-                    if (upper_link_object_list[w].link_node_attribute.link_Attribute == 2 && upper_link_object_list[w].link_node_attribute.link_Kind == 1 && q != w)
-                        continue;
+                    Link_Node_Attribute ola = Node_variable_attribute_list[w].link_node_attribute;
 
-                    INDEX con_pos = upper_link_object_list[w].link_node_attribute.link_idx_or_id;
-
-                    Neuro_Text_Item text_comdition;
-
-                    text_comdition.left_distance;
-                    text_comdition.right_distance;
-
-                    General_Condition condition = {.text_condition = text_comdition};
-                    lower_general_condition_list.push_back(condition);
-
-                    lower_attribute_head.condition_num += 1;
-                }
-
-                Neuro_Text_Item text_result;
-
-                General_Result result = {.text_result = text_result};
-                lower_general_result_list.push_back(result);
-
-                lower_attribute_head.result_num += 1;
-
-                Simple_Neuro_Attribute_write(material_id, 0, 1, lower_attribute_head,
-                    lower_general_condition_list, lower_general_result_list);
-
-                general_attribute_put(lower_attribute_head, add_item, lower_general_condition_list, lower_general_result_list);
-                neuro_attribute_write(material_id, add_item, 0, 1);
-            }
-        }
-
-        for (int a = 0; a < lower_node_num; a++)
-        {
-            general_attribute_put(upper_attribute_head, add_item, upper_general_condition_list, upper_general_result_list);
-            neuro_attribute_write(get_id, add_item, 0, 1);
-        }
-
-        ID_Find_General_Node[get_id].push_back(upper_node_idx);
-    }
-    else if (generate_node_kind == 3)
-    {
-        Neuro_Concept_Desc concept_desc;
-        Neuro_Desc neuro_desc = {.concept_desc = concept_desc};
-
-        ID get_id = new_neuro_create(3, neuro_desc);
-        upper_node.self_id = get_id;
-
-        Attribute_Head_Item upper_attribute_head;
-        upper_attribute_head.attribute_kind = 2;
-
-        vector<General_Condition> upper_general_condition_list;
-        vector<General_Result> upper_general_result_list;
-
-        vector<int> add_item;
-
-        char lower_node_num = 0;
-
-        for (int q = 0; q < upper_link_object_list.size(); q++)
-        {
-            Link_Node_Attribute lo = upper_link_object_list[q].link_node_attribute;
-
-            if (lo.link_Kind != 1 && lo.link_Attribute != 2)
-                continue;
-
-            INDEX wri_pos = lo.link_idx_or_id;
-            ID material_id = General_Node_Storage[wri_pos].self_id;
-
-            if (rand_0_to_255() < allow_value)
-            {
-                lower_node_num += 1;
-
-                Attribute_Head_Item lower_attribute_head;
-                lower_attribute_head.attribute_kind = 2;
-
-                vector<General_Condition> lower_general_condition_list;
-                vector<General_Result> lower_general_result_list;
-
-                for (int w = 0; w < upper_link_object_list.size(); w++)
-                {
-                    Link_Node_Attribute ola = upper_link_object_list[w].link_node_attribute;
-
-                    if (ola.link_Attribute == 2 && ola.link_Kind == 1 && q != w)
+                    if (ola.is_node_link != 4 && ola.link_Kind == 2 && q != w)
                         continue;
 
                     INDEX con_pos = ola.link_idx_or_id;
@@ -938,66 +828,354 @@ void new_neuro_generate_record(
                     time_condition.logic;
                     time_condition;
 
-                    General_Condition condition = {.time_condition = time_condition};
-                    lower_general_condition_list.push_back(condition);
+                    Neuro_Union_Attribute condition = {.time_item = time_condition};
+                    lower_general_condition_result_list.push_back(condition);
 
                     lower_attribute_head.condition_num += 1;
                 }
 
-                // 生成上级
                 Neuro_Time_Item time_result;
 
-                General_Result result = {.time_result = time_result};
-                lower_general_result_list.push_back(result);
+                Neuro_Union_Attribute result = {.time_item= time_result};
+                lower_general_condition_result_list.push_back(result);
 
                 lower_attribute_head.result_num += 1;
 
                 Simple_Neuro_Attribute_write(material_id, 0, 1, lower_attribute_head,
-                                             lower_general_condition_list, lower_general_result_list);
+                    lower_general_condition_result_list);
 
-                general_attribute_put(lower_attribute_head, add_item, lower_general_condition_list, lower_general_result_list);
+                general_attribute_put(lower_attribute_head, add_item, lower_general_condition_result_list);
                 neuro_attribute_write(material_id, add_item, 0, 1);
             }
         }
 
-        for (int a = 0; a < lower_node_num; a++)
+
+        ID_Find_General_Node[get_id].push_back(upper_node_idx);
+
+    } else if (generate_node_kind == 3)
+    {
+        Neuro_Text_Desc text_desc;
+        Neuro_Desc neuro_desc = {.text_desc = text_desc};
+
+        ID get_id = new_neuro_create(3, neuro_desc);
+        upper_node.self_id = get_id;
+
+        upper_attribute_head.attribute_kind = 2;
+
+        vector<int> add_item;
+
+        char lower_node_num = 0;
+
+        for (int q = 0; q < Node_variable_attribute_list.size(); q++)
         {
-            general_attribute_put(upper_attribute_head, add_item, upper_general_condition_list, upper_general_result_list);
-            neuro_attribute_write(get_id, add_item, 0, 1);
+            Link_Node_Attribute lo = Node_variable_attribute_list[q].link_node_attribute;
+
+            if (lo.is_node_link != 4 && lo.link_Kind != 2)
+                continue;
+
+            INDEX wri_pos = lo.link_idx_or_id;
+            ID material_id = General_Node_Storage[wri_pos].self_id;
+
+            if (rand_0_to_255() < allow_value)
+            {
+                lower_node_num += 1;
+
+                Attribute_Head lower_attribute_head;
+                lower_attribute_head.attribute_kind = 2;
+
+                for(int w = 0; w < Node_variable_attribute_list.size(); w++)
+                {
+                    if (Node_variable_attribute_list[w].link_node_attribute.is_node_link == 4 && Node_variable_attribute_list[w].link_node_attribute.link_Kind == 2 && q != w)
+                        continue;
+
+                    INDEX con_pos = Node_variable_attribute_list[w].link_node_attribute.link_idx_or_id;
+
+                    Neuro_Text_Item text_condition;
+
+                    text_condition.left_distance;
+                    text_condition.right_distance;
+
+                    Neuro_Union_Attribute condition = {.text_item = text_condition};
+                    lower_general_condition_result_list.push_back(condition);
+
+                    lower_attribute_head.condition_num += 1;
+                }
+
+                Neuro_Text_Item text_result;
+
+                Neuro_Union_Attribute result = {.text_item = text_result};
+                lower_general_condition_result_list.push_back(result);
+
+                lower_attribute_head.result_num += 1;
+
+                Simple_Neuro_Attribute_write(material_id, 0, 1, lower_attribute_head,
+                    lower_general_condition_result_list);
+            }
         }
+
+
+        ID_Find_General_Node[get_id].push_back(upper_node_idx);
+
+    } else if (generate_node_kind == 4)
+    {
+        Neuro_Concept_Desc concept_desc;
+        Neuro_Desc neuro_desc = {.concept_desc = concept_desc};
+
+        ID get_id = new_neuro_create(4, neuro_desc);
+        upper_node.self_id = get_id;
+
+        upper_attribute_head.attribute_kind = 2;
+
+        vector<int> add_item;
+
+        char lower_node_num = 0;
+
+        for (int q = 0; q < Node_variable_attribute_list.size(); q++)
+        {
+            Link_Node_Attribute lo = Node_variable_attribute_list[q].link_node_attribute;
+
+            if (lo.is_node_link != 4 && lo.link_Kind != 2)
+                continue;
+
+            lo.link_idx_or_id;
+
+            INDEX wri_pos = lo.link_idx_or_id;
+            ID material_id = General_Node_Storage[wri_pos].self_id;
+
+            if (rand_0_to_255() < allow_value)
+            {
+                lower_node_num += 1;
+
+                Attribute_Head lower_attribute_head;
+                lower_attribute_head.attribute_kind = 2;
+
+                for(int w = 0; w < Node_variable_attribute_list.size(); w++)
+                {
+                    if (Node_variable_attribute_list[w].link_node_attribute.is_node_link != 2 && Node_variable_attribute_list[w].link_node_attribute.link_Kind != 2 && q != w)
+                        continue;
+
+                    INDEX con_pos = Node_variable_attribute_list[w].link_node_attribute.link_idx_or_id;
+
+                    Neuro_Concept_Item concept_condition;
+
+                    Neuro_Union_Attribute condition = {.concept_item = concept_condition};
+                    lower_general_condition_result_list.push_back(condition);
+
+                    lower_attribute_head.condition_num += 1;
+                }
+
+                Neuro_Concept_Item concept_result;
+
+                Neuro_Union_Attribute result = {.concept_item = concept_result};
+                lower_general_condition_result_list.push_back(result);
+
+                lower_attribute_head.result_num += 1;
+
+                Simple_Neuro_Attribute_write(material_id, 0, 1, lower_attribute_head,
+                    lower_general_condition_result_list);
+            }
+        }
+
 
         ID_Find_General_Node[get_id].push_back(upper_node_idx);
     }
+
+    Simple_Neuro_Attribute_write(upper_node_idx, 0, 1, upper_attribute_head,
+        upper_general_condition_result_list);
 }
-// 函数结束
 
 
+void init_a_node_require(INDEX node_idx)
+{
+    General_Node& curr_node = General_Node_Storage[node_idx];
+
+    int *ptr = node_find(curr_node.self_id);
+
+    char predict_stability_num = *((char*)ptr + 3);
+
+    if(curr_node.belong_scene_kind == 1)
+    {
+        ;
+    } else if(curr_node.belong_scene_kind == 2)
+    {
+        float upward_predict_ability = *(ptr + 4);
+        float downward_predict_ability = *(ptr + 5);
+        float left_predict_ability = *(ptr + 6);
+        float right_predict_ability = *(ptr + 7);
+
+
+        Require_Object require_object;
+        require_object.require_kind = 20;
+        require_object.require_value = predict_stability_num * upward_predict_ability;
+        require_object.require_detail_kind = 1;
+        Link_Variable_Attribute lva = {.require_object = require_object};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+
+        Node_Image_Continuous_Attribute node_image_att;
+        node_image_att.begin_direction = 0;
+        node_image_att.end_direction = 8;
+        lva = {.node_image_continuous_attribute = node_image_att};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+
+
+        require_object.require_value = predict_stability_num * downward_predict_ability;
+        lva = {.require_object = require_object};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+
+        node_image_att.begin_direction = 8;
+        node_image_att.end_direction = 0;
+        lva = {.node_image_continuous_attribute = node_image_att};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+
+
+        require_object.require_value = predict_stability_num * left_predict_ability;
+        lva = {.require_object = require_object};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+
+        node_image_att.begin_direction = 4;
+        node_image_att.end_direction = 12;
+        lva = {.node_image_continuous_attribute = node_image_att};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+
+
+        require_object.require_value = predict_stability_num * right_predict_ability;
+        lva = {.require_object = require_object};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+
+        node_image_att.begin_direction = 12;
+        node_image_att.end_direction = 4;
+        lva = {.node_image_continuous_attribute = node_image_att};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+
+    } else if(curr_node.belong_scene_kind == 3)
+    {
+        float forward_predict_stability = *(ptr + 4);
+        float backward_predict_stability = *(ptr + 5);
+
+        Require_Object require_object;
+        require_object.require_kind = 20;
+        require_object.require_value = predict_stability_num * forward_predict_stability;
+        require_object.require_detail_kind = 1;
+        Link_Variable_Attribute lva = {.require_object = require_object};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+        
+        Node_Time_Continuous_Attribute node_time_att;
+        char distance = node_time_att.block_num;
+        node_time_att.begin_time = -distance;
+        node_time_att.end_time = 0;
+        lva = {.node_time_continuous_attribute = node_time_att};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+
+        require_object.require_value = predict_stability_num * forward_predict_stability;
+        lva = {.require_object = require_object};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+
+
+        node_time_att.begin_time = 0;
+        node_time_att.end_time = distance;
+        lva = {.node_time_continuous_attribute = node_time_att};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+
+        require_object.require_value = predict_stability_num * backward_predict_stability;
+        lva = {.require_object = require_object};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+        
+    } else if(curr_node.belong_scene_kind == 4)
+    {
+        float forward_predict_stability = *(ptr + 4);
+        float backward_predict_stability = *(ptr + 5);
+
+        Require_Object require_object;
+        require_object.require_kind = 20;
+        require_object.require_value = predict_stability_num * forward_predict_stability;
+        require_object.require_detail_kind = 1;
+        Link_Variable_Attribute lva = {.require_object = require_object};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+        
+        Node_Text_Continuous_Attribute node_text_att;
+        char distance = node_text_att.block_num;
+        node_text_att.begin_position = -distance;
+        node_text_att.end_position = 0;
+        lva = {.node_text_continuous_attribute = node_text_att};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+
+        require_object.require_value = predict_stability_num * forward_predict_stability;
+        lva = {.require_object = require_object};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+
+
+        node_text_att.begin_position = 0;
+        node_text_att.end_position = distance;
+        lva = {.node_text_continuous_attribute = node_text_att};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+
+        require_object.require_value = predict_stability_num * backward_predict_stability;
+        lva = {.require_object = require_object};
+        curr_node.Node_variable_attribute_list.push_back(lva);
+    }
+    
+
+}
 
 struct Generate_Permit
 {
     bool condition_image_permit = 0;
-    char condition_time_permit = 0;
-    char condition_number_permit = 0;
-    char condition_text_permit = 0;
-    char conditon_action_permit = 0;
+    bool condition_time_permit = 0;
+    bool condition_number_permit = 0;
+    bool condition_text_permit = 0;
+    bool condition_concept_permit = 0;
+    bool conditon_action_permit = 0;
+    bool condition_belief_permit = 0;
+    bool condition_manner_permit = 0;
 
-    char result_image_permit = 0;
-    char result_time_permit = 0;
-    char result_number_permit = 0;
-    char result_text_permit = 0;
-    char result_belief_permit = 0;
-    char result_manner_permit = 0;
+    bool result_image_permit = 0;
+    bool result_time_permit = 0;
+    bool result_number_permit = 0;
+    bool result_text_permit = 0;
+    bool result_concept_permit = 0;
+    bool result_action_permit = 0;
+    bool result_belief_permit = 0;
+    bool result_manner_permit = 0;
+
+    bool stat_attribute_permit = 0;
+    bool upper_attribute_permit = 0;
+    bool lower_attribute_permit = 0;
+    bool category_attribute_permit = 0;
 };
 
-Generate_Permit a_generate_permit;
+Generate_Permit fill_permit;
 
 
-inline void General_Cognition_Generate_Module(
-    INDEX curr_node_idx, INDEX scene_idx,
-    short &fea, int *&ptr,
-    Generate_Permit generate_permit = a_generate_permit)
+inline void inside_attribute_cognition_generate_module(
+    INDEX curr_node_idx, INDEX scene_idx, char scene_kind,
+    short &fea, int *&ptr, Generate_Permit generate_permit = fill_permit )
 {
-    Attribute_Head_Item attribute_head = attribute_head_read(ptr);
+    INDEX general_scene_idx = 0;
+    INDEX image_scene_idx = 0;
+    INDEX time_scene_idx = 0;
+    INDEX text_scene_idx = 0;
+
+    if(scene_kind == 1)
+        general_scene_idx = scene_idx;
+    else if(scene_kind == 2)
+        image_scene_idx = scene_idx;
+    else if(scene_kind == 3)
+        time_scene_idx = scene_idx;
+    else if(scene_kind == 4)
+        text_scene_idx = scene_idx;
+
+    General_Scene& curr_general_scene = General_Scene_Storage[general_scene_idx];
+    Image_Scene& curr_image_scene = Image_Scene_Storage[image_scene_idx];
+    Time_Scene& curr_time_scene = Time_Scene_Storage[time_scene_idx];
+    Text_Scene& curr_text_scene = Text_Scene_Storage[text_scene_idx];
+    
+    General_Node curr_node = read_a_General_Node(curr_node_idx);
+    ID curr_node_id = curr_node.self_id;
+    
+    vector<INDEX> combo_node_record_list;
+    combo_node_record_list.push_back(curr_node_id);
+
+    Attribute_Head attribute_head = attribute_head_read(ptr);
     char attribute_kind = attribute_head.attribute_kind;
 
     char condition_kind;
@@ -1008,348 +1186,452 @@ inline void General_Cognition_Generate_Module(
     char result_num = attribute_head.result_num;
     char result_size = 0;
 
-    switch (attribute_kind)
-    {
-        ;
-    }
-}
-
-
-inline void Image_Cognition_Generate_Module(
-    INDEX curr_node_idx, INDEX scene_idx,
-    short &fea, int *&ptr,
-    Generate_Permit generate_permit = a_generate_permit)
-{
-    Image_Scene &curr_scene = Image_Scene_Storage[scene_idx];
-    unordered_map<ID, vector<INDEX>> &Id_find_overall_node = curr_scene.Id_find_overall_node;
-
-    General_Node curr_node = read_a_General_Node(curr_node_idx);
-    ID curr_node_id = curr_node.self_id;
-
-    Node_Image_Attribute image_attribute = read_a_Node_Image_Attribute(curr_node_idx);
-    unsigned short x = image_attribute.x;
-    unsigned short y = image_attribute.y;
-    INDEX require_idx = x + curr_scene.width * y;
-
-    Attribute_Head_Item attribute_head = attribute_head_read(ptr);
-
-    char condition_kind;
-    char condition_num = attribute_head.condition_num;
-    char condition_size = 0;
-
-    char result_kind;
-    char result_num = attribute_head.result_num;
-    char result_size = 0;
-
-    int matchCount = result_num;
-    
-    vector<INDEX> the_combo_record;
-
     *(ptr + 1) += 1;
+    int* first_ptr = ptr;
+    ptr += 3;
 
-    ptr + 3;
+    Match_Generate match_generate;
+    match_generate.node_idx_from[0] = curr_node_idx;
+    match_generate.node_num += 1;
+    int matchCount = 0;
 
-    if (attribute_head.attribute_kind == 1)
+    char variable_attribute_num = 0;
+    Link_Variable_Attribute load_attribute_array[4] =
+        {filler_variable_attribute, filler_variable_attribute, filler_variable_attribute, filler_variable_attribute};
+    
+    int is_joint = 0;
+    
+    for(int c = 0; c < condition_num; c++)
     {
-        Match_Generate match_generate;
-        match_generate.node_idx_from[0] = curr_node_idx;
-        match_generate.node_num += 1;
+        return_item_kind_and_size(ptr, condition_kind, condition_size);
 
-        for (char a = 0; a < result_num; a += 1)
+        switch (condition_kind)
         {
-            return_item_kind_and_size(ptr, condition_kind, condition_size);
+        case 1:
+        {
+            unordered_map<ID, vector<INDEX>> &Id_find_overall_node = curr_image_scene.Id_find_overall_node;
 
-            switch (condition_kind)
+            Node_Image_Single_Attribute image_attribute = read_a_Node_Image_Attribute(curr_node_idx);
+            unsigned short x = image_attribute.x;
+            unsigned short y = image_attribute.y;
+
+            Neuro_Image_Item image_condition = *(Neuro_Image_Item *)(ptr);
+            ID need_id = image_condition.target_id;
+
+            if (image_condition.logic == 1)
             {
-            case 1:
-            {
-                Neuro_Image_Item image_condition = *(Neuro_Image_Item *)(ptr);
-                ID need_id = image_condition.related_id;
-                char logic = image_condition.logic;
-                
                 if (!Id_find_overall_node.count(need_id))
                 {
-                    matchCount--;
+                    match_generate.match_condition[match_generate.need_condition_num].image_item = image_condition;
+                    match_generate.node_num += 1;
+                    continue;
 
-                    match_generate.match_condition[match_generate.result_num].image_condition = image_condition;
+                } else {
+
+                    vector<INDEX> candidate_list = Id_find_overall_node[need_id];
+                    char candidate_amount = candidate_list.size();
+                    INDEX target_idx;
+
+                    int b = 0;
+                    for (; b < candidate_amount; b++)
+                    {
+                        target_idx = candidate_list[b];
+
+                        Node_Image_Single_Attribute target_image_attritube = read_a_Node_Image_Attribute(target_idx);
+                        char com_direction;
+                        char com_distance;
+                        get_two_point_direction_distance(x, y, target_image_attritube.x, target_image_attritube.y,
+                            com_direction, com_distance);
+
+                        if (abs(com_distance - image_condition.distance) <= (image_condition.distance_scale - 1) &&
+                            abs(com_direction - image_condition.direction) <= (image_condition.direction_scale - 1))
+                        {
+                            matchCount++;
+                            combo_node_record_list.push_back(target_idx);
+                            break;
+                        }
+                        
+                    }
+
+                    if (b == candidate_amount)
+                    {
+                        match_generate.match_condition[match_generate.need_condition_num].image_item = image_condition;
+                        match_generate.need_condition_num += 1;
+
+                        INDEX match_idx = match_generate.match_idx;
+
+                        if(match_idx == 0)
+                        {
+                            match_idx = create_a_local_Match_Generate(curr_image_scene.Match_generate_list,
+                                curr_image_scene.Free_match_generate_index, match_generate);
+                        }
+
+                        curr_image_scene.Id_find_match_generate[need_id].push_back(match_idx);
+                    }
+
+                    match_generate.node_idx_from[match_generate.node_num] = target_idx;
+                    match_generate.node_num += 1;
+                }
+
+            } else if(image_condition.logic == 0) {
+                
+                if (Id_find_overall_node.count(need_id))
+                {
+                    vector<INDEX> candidate_list = Id_find_overall_node[need_id];
+                    char candidate_amount = candidate_list.size();
+                    INDEX target_idx;
+                    vector<INDEX> deny_source;
+
+                    int b = 0;
+                    for (; b < candidate_amount; b++)
+                    {
+                        target_idx = candidate_list[b];
+
+                        Node_Image_Single_Attribute target_image_attritube = read_a_Node_Image_Attribute(target_idx);
+                        char com_direction;
+                        char com_distance;
+                        get_two_point_direction_distance(x, y, target_image_attritube.x, target_image_attritube.y,
+                            com_direction, com_distance);
+
+                        if (abs(com_distance - image_condition.distance) <= (image_condition.distance_scale - 1) &&
+                            abs(com_direction - image_condition.direction) <= (image_condition.direction_scale - 1))
+                        {
+                            deny_source.push_back(target_idx);
+                        }
+                        
+                    }
+                    
+                    if (b == candidate_amount)
+                    {
+                        General_Node unneed_node;
+                        unneed_node.node_kind = 0;
+                        unneed_node.self_id = image_condition.target_id;
+                        target_idx = create_a_General_Node(unneed_node);
+
+                        matchCount++;
+                        match_generate.node_idx_from[match_generate.node_num] = target_idx;
+                        match_generate.node_num += 1;
+                    }
+
+                } else {
+
+                    General_Node unneed_node;
+                    unneed_node.node_kind = 0;
+                    unneed_node.self_id = image_condition.target_id;
+                    INDEX target_idx = create_a_General_Node(unneed_node);
+
+                    matchCount++;
+                    match_generate.node_idx_from[match_generate.node_num] = target_idx;
+                    match_generate.node_num += 1;
+                }
+            }
+        }
+        break;
+        case 2:
+        {
+            Neuro_Number_Item number_condition = *(Neuro_Number_Item *)(ptr);
+            ID need_id;
+            number_condition.number_I;
+
+            //?
+            unordered_map<ID, vector<INDEX>> &Id_find_overall_node = curr_image_scene.Id_find_overall_node;
+            
+            if(number_condition.logic == 1)
+            {
+                if (!Id_find_overall_node.count(need_id))
+                {
+                    vector<INDEX> possible_object = Id_find_overall_node[need_id];
+
+                    matchCount--;
+                    match_generate.match_condition[match_generate.result_num].number_item = number_condition;
                     match_generate.result_num += 1;
                     match_generate.node_idx_from[match_generate.node_num] = curr_node_idx;
                     continue;
-                } else
-                {
-                    vector<INDEX> possible_object = Id_find_overall_node[need_id];
-                    int possible_object_size = possible_object.size();
 
-                    char object_is_exist = 0;
+                } else {
 
-                    for (int b = 0; b < possible_object_size; b++)
+                    vector<INDEX> candidate_list = Id_find_overall_node[need_id];
+                    int candidate_amount = candidate_list.size();
+                    INDEX target_idx;
+
+                    int b = 0;
+                    for (; b < candidate_amount; b++)
                     {
-                        INDEX possible_object_idx = possible_object[b];
-                        Node_Image_Attribute object_image_attribute = read_a_Node_Image_Attribute(possible_object_idx);
+                        target_idx = candidate_list[b];
+                        Node_Image_Single_Attribute object_image_attribute = read_a_Node_Image_Attribute(candidate_list[b]);
+                    }
 
-                        char compare_direction;
-                        char compare_distance;
+                    if (b == candidate_amount)
+                    {
+                        match_generate.match_condition[match_generate.need_condition_num].number_item = number_condition;
+                        match_generate.need_condition_num += 1;
 
-                        get_two_point_direction_distance(x, y, object_image_attribute.x,
-                            object_image_attribute.y, compare_direction, compare_distance);
+                        INDEX match_idx = match_generate.match_idx;
 
-                        char diff_direction = abs(compare_direction - image_condition.direction);
-                        char diff_distance = abs(compare_distance - image_condition.distance);
-
-                        if (diff_direction < image_condition.direction_scale && diff_distance < image_condition.distance_scale)
+                        if(match_idx == 0)
                         {
-                            *(ptr + 2) += 1;
-                            object_is_exist = 1;
+                            match_idx = create_a_local_Match_Generate(curr_image_scene.Match_generate_list,
+                                curr_image_scene.Free_match_generate_index, match_generate);
+                        }
+
+                        curr_image_scene.Id_find_match_generate[need_id].push_back(match_idx);
+                    }
+                }
+            } else if (number_condition.logic == 0) {
+                ;
+            }
+        }
+        break;
+        case 3:
+        {
+            Neuro_Time_Item time_condition = *(Neuro_Time_Item *)(ptr);
+            ID need_id = time_condition.target_id;
+            unordered_map<ID, vector<INDEX>> &Id_find_overall_node = curr_time_scene.Id_find_overall_node;
+            
+            if(time_condition.logic == 1)
+            {
+                if (!Id_find_overall_node.count(need_id))
+                {
+                    match_generate.match_condition[match_generate.result_num].time_item = time_condition;
+                    match_generate.result_num += 1;
+                    match_generate.node_idx_from[match_generate.node_num] = curr_node_idx;
+                    continue;
+
+                } else {
+
+                    vector<INDEX> candidate_list = Id_find_overall_node[need_id];
+                    char candidate_amount = candidate_list.size();
+
+                    INDEX target_idx;
+
+                    int b = 0;
+                    for (; b < candidate_amount; b++)
+                    {
+                        target_idx = candidate_list[b];
+                        Node_Time_Single_Attribute node_time_attribute = read_a_Node_Time_Attribute(target_idx);
+
+                        // if( time_condition  )
+                        //     break;
+                    }
+
+                    if (b == candidate_amount)
+                    {
+                        match_generate.match_condition[match_generate.result_num].time_item = time_condition;
+                        match_generate.need_condition_num += 1;
+                        match_generate.node_idx_from[match_generate.node_num] = curr_node_idx;
+                        match_generate.node_num += 1;
+                        continue;
+
+                        INDEX match_idx = create_a_local_Match_Generate(curr_time_scene.Match_generate_list,
+                            curr_time_scene.Free_match_generate_index, match_generate);
+
+                        curr_time_scene.Id_find_match_generate[need_id].push_back(match_idx);
+                    }
+                }
+            } else if (time_condition.logic == 0) {
+                ;
+            }
+        }
+        break;
+        case 4:
+        {
+            unordered_map<ID, vector<INDEX>> &Id_find_overall_node = curr_text_scene.Id_find_overall_node;
+
+            vector<vector<INDEX>> &Text_node_space_from_record_list = curr_text_scene.Space_form_record[0].record_list;
+            int original_text_size = curr_text_scene.original_text_size;
+            vector<Link_Variable_Attribute>& Require_object_list = curr_text_scene.Require_object_list;
+
+            Node_Text_Single_Attribute node_text_attribute = read_a_Node_Text_Attribute(curr_node_idx);
+            INDEX pos_idx = node_text_attribute.position;
+
+            Neuro_Text_Item text_condition = *(Neuro_Text_Item *)(ptr);
+            ID need_id = text_condition.target_id;
+
+            INDEX front_boundary = pos_idx + text_condition.left_distance;
+            INDEX back_boundary = pos_idx + text_condition.right_distance;
+
+
+            if (front_boundary < 0)
+                front_boundary = 0;
+
+            if (back_boundary > original_text_size - 1)
+                back_boundary = original_text_size - 1;
+
+            char num = 0;
+
+            INDEX front_vec = front_boundary / 8;
+            INDEX back_vec = back_boundary / 8;
+
+            
+            char condition_satisfy_finish = 0;
+            
+            if (text_condition.effect_kind == 1)
+            {
+                for (INDEX vec_idx = front_vec; vec_idx <= back_vec && condition_satisfy_finish == 0; vec_idx++)
+                {
+                    vector<INDEX> &inside_list = Text_node_space_from_record_list[vec_idx];
+                    int inside_size = inside_list.size();
+
+                    for (int b = 0; b < 8; b++)
+                    {
+                        INDEX object_idx = inside_list[b];
+
+                        Node_Text_Single_Attribute object_attribute_text = read_a_Node_Text_Attribute(object_idx);
+                        INDEX space_pos = object_attribute_text.position;
+
+                        if (space_pos < front_boundary && space_pos > back_boundary)
+                            continue;
+
+                        if (need_id == General_Node_Storage[object_idx].self_id)
+                        {
+                            condition_satisfy_finish = 1;
+                            match_generate.node_idx_from[match_generate.node_num] = object_idx;
+                            match_generate.node_num += 1;
+                            break;
+                        }
+
+                    }
+                }
+
+                if (condition_satisfy_finish == 0)
+                {
+                    ;
+                }
+
+            } else if (text_condition.effect_kind == 2)
+            {
+                for (INDEX vec_idx = front_vec; vec_idx <= back_vec && condition_satisfy_finish == 0; vec_idx++)
+                {
+                    vector<INDEX> &inside_list = Text_node_space_from_record_list[vec_idx];
+                    int inside_size = inside_list.size();
+
+                    for (int b = 8; b < inside_size; b++)
+                    {
+                        INDEX object_idx = inside_list[b];
+
+                        Node_Text_Single_Attribute scan_object_attribute = read_a_Node_Text_Attribute(object_idx);
+                        int space_pos = scan_object_attribute.position;
+
+                        if (space_pos < front_boundary && front_boundary > back_boundary)
+                            continue;
+
+                        if (need_id == General_Node_Storage[inside_list[b]].self_id)
+                        {
+                            condition_satisfy_finish = 1;
+                            match_generate.node_idx_from[match_generate.node_num] = object_idx;
+                            match_generate.node_num += 1;
                             break;
                         }
                     }
-
-                    if (object_is_exist == 0)
-                    {
-                        match_generate.match_result[match_generate.result_num].image_result = image_condition;
-                        match_generate.result_num += 1;
-                        match_generate.node_idx_from[match_generate.node_num] = curr_node_idx;
-                        continue;
-
-                        INDEX match_idx = create_a_local_Match_Generate(curr_scene.Match_generate_list,
-                            curr_scene.Free_match_generate_index, match_generate);
-
-                        curr_scene.Id_find_image_match[need_id].push_back(match_idx);
-                    }
                 }
+
+                if (condition_satisfy_finish == 0)
+                {
+                    ;
+                }
+
+
             }
-            break;
-            case 2:
-            {
-                Neuro_Number_Item number_result = *(Neuro_Number_Item *)(ptr);
-                ID need_id;
-                char logic = number_result.logic;
-            }
-            break;
-            case 3:
-            {
-                Neuro_Time_Item time_result = *(Neuro_Time_Item *)(ptr);
-                ID need_id = time_result.related_id;
-                char logic = time_result.logic;
-            }
-            break;
-            case 5:
-            {
-                Neuro_Concept_Item concept_result = *(Neuro_Concept_Item *)(ptr);
-                ID need_id = concept_result.target_id;
-                char logic = concept_result.logic;
-            }
-            }
+            
         }
+        break;
+        case 5:
+        {
+            unordered_map<ID, vector<INDEX>> &Id_find_overall_node = curr_general_scene.Id_find_overall_node;
+
+            Neuro_Concept_Item concept_condition = *(Neuro_Concept_Item *)(ptr);
+            ID need_id = concept_condition.target_id;
+            char logic = concept_condition.logic;
+        }
+        break;
+        case 6:
+        {
+            Neuro_Action_Item action_condition = *(Neuro_Action_Item *)(ptr);
+        }
+        break;
+        case 7:
+        {
+            Neuro_Belief_Item belief_condition = *(Neuro_Belief_Item *)(ptr);
+        }
+        case 8:
+        {
+            Neuro_Manner_Item manner_condition = *(Neuro_Manner_Item *)(ptr);
+        }
+        }
+
     }
-    else if (attribute_head.attribute_kind == 2)
+
+
+    for (char r = 0; r < result_num; r++)
     {
-
-        Match_Generate match_generate;
-        match_generate.node_idx_from[0] = curr_node_idx;
-        match_generate.node_num += 1;
-
-        for (char a = 0; a < condition_num; a += 1)
-        {
-            return_item_kind_and_size(ptr, condition_kind, condition_size);
-
-            switch (condition_kind)
-            {
-            case 1:
-            {
-                Neuro_Image_Item image_condition = *(Neuro_Image_Item *)(ptr);
-                ID need_id = image_condition.related_id;
-                char logic = image_condition.logic;
-
-                if (!Id_find_overall_node.count(need_id))
-                {
-                    if (logic != 0)
-                    {
-                        matchCount--;
-
-                        match_generate.match_condition[match_generate.need_condition_num].image_condition = image_condition;
-                        match_generate.node_num += 1;
-                        continue;
-                    }
-                }
-
-                char candidate_amount = Id_find_overall_node[need_id].size();
-
-                char need_direction = image_condition.direction;
-                char need_distance = image_condition.distance;
-                char need_related_scale = image_condition.related_scale;
-                char permit_direction_scale = image_condition.direction_scale;
-                char permit_distance_scale = image_condition.distance_scale;
-
-                vector<INDEX> candidate_list = Id_find_overall_node[need_id];
-
-                for (int b = 0; b < candidate_amount; b++)
-                {
-                    INDEX target_idx = candidate_list[b];
-
-                    Node_Image_Attribute target_image_attritube = read_a_Node_Image_Attribute(target_idx);
-                    char com_direction;
-                    char com_distance;
-                    get_two_point_direction_distance(x, y, target_image_attritube.x, target_image_attritube.y,
-                        com_direction, com_distance);
-
-                    if (abs(com_distance - need_distance) <= (permit_distance_scale - 1) &&
-                        abs(com_direction - need_direction) <= (permit_direction_scale - 1))
-                    {
-                        the_combo_record.push_back(target_idx);
-                        break;
-                    }
-                    else if (b == (candidate_amount - 1))
-                    {
-                        match_generate.match_condition[match_generate.need_condition_num].image_condition = image_condition;
-                        match_generate.need_condition_num += 1;
-
-                        matchCount--;
-                    }
-                }
-            }
-            break;
-            case 2:
-            {
-                Neuro_Number_Item number_condition = *(Neuro_Number_Item *)(ptr);
-                ID need_id;
-                char logic = number_condition.logic;
-
-                if (!Id_find_overall_node.count(need_id))
-                {
-                    if (logic != 0)
-                    {
-                        matchCount--;
-
-                        match_generate.match_condition[match_generate.need_condition_num].number_condition = number_condition;
-                        match_generate.node_num += 1;
-                        continue;
-                    }
-                }
-
-                char candidate_amount = Id_find_overall_node[need_id].size();
-
-                // if()
-                // {
-                //     ;
-                // }
-            }
-            break;
-            case 3:
-            {
-                Neuro_Time_Item time_condition = *(Neuro_Time_Item *)(ptr);
-                ID need_id = time_condition.related_id;
-                char logic = time_condition.logic;
-
-                if (!Id_find_overall_node.count(need_id))
-                {
-                    if (logic != 0)
-                    {
-                        matchCount--;
-
-                        match_generate.match_condition[match_generate.need_condition_num].time_condition = time_condition;
-                        match_generate.node_num += 1;
-                        continue;
-                    }
-                }
-
-                char candidate_amount = Id_find_overall_node[need_id].size();
-            }
-            break;
-            case 5:
-            {
-                Neuro_Concept_Item concept_condition = *(Neuro_Concept_Item *)(ptr);
-                ID need_id = concept_condition.target_id;
-                char logic = concept_condition.logic;
-
-                if (!Id_find_overall_node.count(need_id))
-                {
-                    if (logic != 0)
-                    {
-                        matchCount--;
-
-                        match_generate.match_condition[match_generate.need_condition_num].concept_condition = concept_condition;
-                        match_generate.node_num += 1;
-                        continue;
-                    }
-                }
-
-                char candidate_amount = Id_find_overall_node[need_id].size();
-            }
-            }
-        }
-
         return_item_kind_and_size(ptr, result_kind, result_size);
-        Neuro_Image_Item image_result = *(Neuro_Image_Item *)(ptr); // 为什么确定是图结构1�71ￄ1�77
 
-        if (matchCount < result_num)
+        switch(result_kind)
         {
-            fea += attribute_head.item_num;
-            ptr += attribute_head.item_num;
-
-            match_generate.match_result[match_generate.result_num].image_result = image_result;
-            create_a_local_Match_Generate(curr_scene.Match_generate_list, curr_scene.Free_match_generate_index,
-                match_generate);
-            return;
-        }
-
-        the_combo_record.push_back(curr_node_id);
-        the_combo_record.push_back(*(ptr + 9));
-        sort(the_combo_record.begin(), the_combo_record.end());
-
-        
-        if (curr_scene.Node_combo_find_repeat.count(the_combo_record))
+        case 1:
         {
-            vector<Variable_Attribute> &Variable_list = curr_node.Node_variable_attribute_list;
+            Neuro_Image_Item image_result = *(Neuro_Image_Item *)(ptr);
 
-            //
-            for (Variable_Attribute variable_attribute : Variable_list)
+            if (match_generate.need_condition_num)
             {
-                if (variable_attribute.link_node_attribute.link_Attribute != 2)
-                    continue;
+                match_generate.match_result[match_generate.result_num].image_item = image_result;
+                match_generate.result_num += 1;
 
-                if (variable_attribute.link_node_attribute.link_idx_or_id != image_result.related_id)
-                    continue;
+                continue;
+            }
 
-                INDEX idx = variable_attribute.link_node_attribute.link_idx_or_id;
-                Node_Image_Attribute image_attribute = read_a_Node_Image_Attribute(idx);
+            sort(combo_node_record_list.begin(), combo_node_record_list.end());
 
-                char compare_direction;
-                char compare_distance;
+            if (curr_image_scene.Node_combo_find_repeat.count(combo_node_record_list))
+            {
+                vector<Link_Variable_Attribute> &Variable_list = curr_node.Node_variable_attribute_list;
 
-                get_two_point_direction_distance(x, y, image_attribute.x * image_attribute.observe_size,
-                    image_attribute.y * image_attribute.observe_size, compare_direction, compare_distance);
-
-                if (abs(image_result.direction - compare_direction) < image_result.direction_scale && abs(image_result.distance - compare_distance) < image_result.distance_scale)
+                for (Link_Variable_Attribute va : Variable_list)
                 {
-                    fea += attribute_head.item_num;
-                    ptr += attribute_head.item_num;
-                    return;
+                    if (va.link_node_attribute.is_node_link != 4)
+                        continue;
+
+                    if (va.link_node_attribute.link_idx_or_id != image_result.target_id)
+                        continue;
+
+                    INDEX idx = va.link_node_attribute.link_idx_or_id;
+                    Node_Image_Single_Attribute image_attribute = read_a_Node_Image_Attribute(idx);
+
+                    char compare_direction;
+                    char compare_distance;
+
+                    Node_Image_Single_Attribute origin_node_attribute = read_a_Node_Image_Attribute(curr_node_idx);
+
+                    int x = origin_node_attribute.x;
+                    int y = origin_node_attribute.y;
+
+                    get_two_point_direction_distance(x, y, image_attribute.x * image_attribute.observe_size,
+                        image_attribute.y * image_attribute.observe_size, compare_direction, compare_distance);
+
+                    if (abs(image_result.direction - compare_direction) < image_result.direction_scale && abs(image_result.distance - compare_distance) < image_result.distance_scale)
+                    {
+                        fea += attribute_head.item_num;
+                        ptr += attribute_head.item_num;
+                        return;
+                    }
                 }
             }
-        }
 
-        
-        if (result_kind == 1)
-        {
-            INDEX add_idx = new_upper_network_node_generate(the_combo_record, result_kind, scene_idx, 1);
-            the_combo_record.clear();
+            INDEX add_idx = new_upper_network_node_generate(combo_node_record_list, result_kind, scene_idx, scene_kind);
+            combo_node_record_list.clear();
             General_Node &add_node = General_Node_Storage[add_idx];
-            add_node.complete_or_probability = matchCount / result_num;
-
-            add_node.self_id = image_result.related_id;
-            curr_scene.Id_find_overall_node[image_result.related_id].push_back(add_idx);
+            add_node.complete_or_probability = matchCount / condition_num;
+            add_node.self_id = image_result.target_id;
+            curr_image_scene.Id_find_overall_node[image_result.target_id].push_back(add_idx);
 
             int image_match_num = 0;
-            vector<Match_Generate> &Match_generate_list = curr_scene.Match_generate_list;
+            vector<Match_Generate> &Match_generate_list = curr_image_scene.Match_generate_list;
 
-            
-            if (curr_scene.Id_find_image_match.count(add_node.self_id))
+            if (curr_image_scene.Id_find_match_generate.count(add_node.self_id))
             {
-                vector<INDEX> &match_idx = curr_scene.Id_find_image_match[add_node.self_id];
+                vector<INDEX> &match_idx = curr_image_scene.Id_find_match_generate[add_node.self_id];
                 image_match_num = match_idx.size();
 
-                
                 for (int q = 0; q < image_match_num; q++)
                 {
                     if (match_idx[q] == -1)
@@ -1358,9 +1640,9 @@ inline void Image_Cognition_Generate_Module(
                     Match_Generate image_match = Match_generate_list[match_idx[q]];
                     int i = 0;
 
-                    for (; i < 5 && image_match.match_condition[i].image_condition.related_id != add_node.self_id; i++)
+                    for (; i < 5 && image_match.match_condition[i].image_item.target_id != add_node.self_id; i++)
                         ;
-                    Neuro_Image_Item oritation_condition = image_match.match_condition[i].image_condition;
+                    Neuro_Image_Item oritation_condition = image_match.match_condition[i].image_item;
 
                     if (oritation_condition.logic == 1)
                     {
@@ -1368,8 +1650,9 @@ inline void Image_Cognition_Generate_Module(
                         oritation_condition.direction;
                         oritation_condition.distance;
 
+
                         {
-                            image_match.match_condition[i].image_condition.related_id = 0;
+                            image_match.match_condition[i].image_item.target_id = 0;
                             match_idx[q] = -1;
                             image_match.need_condition_num -= 1;
 
@@ -1385,526 +1668,136 @@ inline void Image_Cognition_Generate_Module(
 
                                 add_idx = new_upper_network_node_generate(source_node, generate_kind, scene_idx, 1);
                                 General_Node &new_node = General_Node_Storage[add_idx];
-                                ID id = image_match.match_result[0].image_result.related_id;
+                                ID id = image_match.match_result[0].image_item.target_id;
                                 new_node.self_id = id;
-                                curr_scene.Id_find_overall_node[id].push_back(add_idx);
+                                curr_image_scene.Id_find_overall_node[id].push_back(add_idx);
                             }
                         }
                     }
                     else
                     {
-                        ;
+                        
                     }
+
                 }
             }
         }
-        else if (result_kind == 5)
+        break;
+        case 2:
         {
-            for (int b = 0; b < result_num; b++)
+            Neuro_Number_Item number_result = *(Neuro_Number_Item *)(ptr);
+
+            if (match_generate.need_condition_num)
             {
-                return_item_kind_and_size(ptr, result_kind, result_size);
-                Neuro_Manner_Item manner_result = *(Neuro_Manner_Item *)(ptr);
+                match_generate.match_result[match_generate.result_num].number_item = number_result;
+                match_generate.result_num += 1;
 
-                if (manner_result.manner_kind >= 3)
-                {
-                    manner_result.manner_value;
-                    manner_result.effect_target;
-
-                    Focus_Object focus_object;
-                }
+                return;
             }
         }
-    }
-    else if (attribute_head.attribute_kind == 4)
-    {
-        // **** //
-        // 类别生成
-        // **** //
-
-        Match_Generate match_generate;
-
-        char a = 0;
-        for (; a < condition_num; a += 1)
+        break;
+        case 3:
         {
-            return_item_kind_and_size(ptr, condition_kind, condition_size);
-            Neuro_Image_Item image_condition = *(Neuro_Image_Item *)(ptr);
-            ID need_id = image_condition.related_id;
-            char logic = image_condition.logic;
+            Neuro_Time_Item  time_result = *(Neuro_Time_Item*)(ptr);
 
-            if (!Id_find_overall_node.count(need_id))
+            if (match_generate.need_condition_num)
             {
-                matchCount--;
+                match_generate.match_result[match_generate.result_num].time_item = time_result;
+                match_generate.result_num += 1;
 
-                match_generate.match_condition[match_generate.need_condition_num].image_condition = image_condition;
-                match_generate.node_num += 1;
-                continue;
-            }
-
-            char candidate_amount = Id_find_overall_node[need_id].size();
-
-            switch (condition_kind)
-            {
-            case 1:
-            {
-                char need_direction = image_condition.direction;
-                char need_distance = image_condition.distance;
-                char need_related_scale = image_condition.related_scale;
-                char permit_direction_scale = image_condition.direction_scale;
-                char permit_distance_scale = image_condition.distance_scale;
-
-                vector<INDEX> candidate_list = Id_find_overall_node[need_id];
-
-                for (int b = 0; b < candidate_amount; b++)
-                {
-                    INDEX target_idx = candidate_list[b];
-
-                    Node_Image_Attribute target_image_attritube = read_a_Node_Image_Attribute(target_idx);
-                    char com_direction;
-                    char com_distance;
-
-                    get_two_point_direction_distance(x, y, target_image_attritube.x, target_image_attritube.y,
-                        com_direction, com_distance);
-
-                    if (abs(com_distance - need_distance) <= (permit_distance_scale - 1) &&
-                        abs(com_direction - need_direction) <= (permit_direction_scale - 1))
-                    {
-                        the_combo_record.push_back(target_idx);
-                        goto condition_end;
-                    }
-                    else if (b == (candidate_amount - 1))
-                    {
-                        match_generate.match_condition[match_generate.need_condition_num].image_condition = image_condition;
-                        match_generate.need_condition_num += 1;
-
-                        matchCount--;
-                    }
-                }
-            }
-            break;
-            case 2:
-            {
-                ;
-            }
-            break;
-            case 3:
-            {
-                ;
-            }
+                return;
             }
         }
-
-    condition_end:
-
-        return_item_kind_and_size(ptr, result_kind, result_size);
-        Neuro_Image_Item image_result = *(Neuro_Image_Item *)(ptr); // 为什么确定是图结构1�71ￄ1�77
-
-        // 条件不满足，则跳迄1�71ￄ1�77
-        if (matchCount < result_num)
+        break;
+        case 4:
         {
-            fea += attribute_head.item_num;
-            ptr += attribute_head.item_num;
+            Neuro_Text_Item text_result = *(Neuro_Text_Item *)(ptr);
 
-            match_generate.match_result[match_generate.result_num].image_result = image_result;
-            create_a_local_Match_Generate(curr_scene.Match_generate_list, curr_scene.Free_match_generate_index,
-                match_generate);
-            return;
-        }
-
-        the_combo_record.push_back(curr_node_id);
-        the_combo_record.push_back(*(ptr + 9));
-        sort(the_combo_record.begin(), the_combo_record.end());
-
-        // 1-3、条件满足，进行结果去重棢�浄1�71ￄ1�77
-        if (curr_scene.Node_combo_find_repeat.count(the_combo_record))
-        {
-            // 防止下级节点重复生成，结果的空间方位若一臄1�71ￄ1�77
-
-            // 扫描节点连接，找出连接上节点，匹配是否重处1�71ￄ1�77
-            vector<Variable_Attribute> &Variable_list = curr_node.Node_variable_attribute_list;
-
-            //
-            for (Variable_Attribute variable_attribute : Variable_list)
+            if (match_generate.need_condition_num)
             {
-                if (variable_attribute.link_node_attribute.link_Attribute != 2)
-                    continue;
+                match_generate.match_result[match_generate.result_num].text_item = text_result;
+                match_generate.result_num += 1;
 
-                if (variable_attribute.link_node_attribute.link_idx_or_id != image_result.related_id)
-                    continue;
+                return;
+            }
 
-                INDEX idx = variable_attribute.link_node_attribute.link_idx_or_id;
-                Node_Image_Attribute image_attribute = read_a_Node_Image_Attribute(idx);
+            new_upper_network_node_generate(combo_node_record_list, 3, scene_idx, 2);
+        }
+        break;
+        case 5:
+        {
+            Neuro_Concept_Item concept_result = *(Neuro_Concept_Item *)(ptr);
 
-                char compare_direction;
-                char compare_distance;
+            if (match_generate.need_condition_num)
+            {
+                match_generate.match_result[match_generate.result_num].concept_item = concept_result;
+                match_generate.result_num += 1;
 
-                get_two_point_direction_distance(x, y, image_attribute.x * image_attribute.observe_size,
-                                                 image_attribute.y * image_attribute.observe_size, compare_direction, compare_distance);
-
-                if (abs(image_result.direction - compare_direction) < image_result.direction_scale && abs(image_result.distance - compare_distance) < image_result.distance_scale)
-                {
-                    // 判断=重复
-                    fea += attribute_head.item_num;
-                    ptr += attribute_head.item_num;
-                    return;
-                }
+                return;
             }
         }
-
-        // 2、节点记载添劄1�71ￄ1�77
-        if (result_kind == 1)
+        break;
+        case 6:
         {
-            INDEX add_idx = new_upper_network_node_generate(the_combo_record, result_kind, scene_idx, 1);
-            the_combo_record.clear();
-            General_Node &add_node = General_Node_Storage[add_idx];
-            add_node.complete_or_probability = matchCount / result_num;
+            Neuro_Action_Item;
+        }
+        break;
+        case 7:
+        {
+            Neuro_Belief_Item belief_result = *(Neuro_Belief_Item*)(ptr);
 
-            add_node.self_id = image_result.related_id;
-            curr_scene.Id_find_overall_node[image_result.related_id].push_back(add_idx);
-
-            int image_match_num = 0;
-            vector<Match_Generate> &Match_generate_list = curr_scene.Match_generate_list;
-
-            // 3、匹配激洄1�71ￄ1�77
-            if (curr_scene.Id_find_image_match.count(add_node.self_id))
+            if (match_generate.need_condition_num)
             {
-                vector<INDEX> &match_idx = curr_scene.Id_find_image_match[add_node.self_id];
-                image_match_num = match_idx.size();
+                match_generate.match_result[match_generate.result_num].belief_item = belief_result;
+                match_generate.result_num += 1;
 
-                // 挨个匹配列表中的匹配
-                for (int q = 0; q < image_match_num; q++)
-                {
-                    if (match_idx[q] == -1)
-                        continue;
-
-                    Match_Generate image_match = Match_generate_list[match_idx[q]];
-                    int i = 0;
-
-                    for (; i < 5 && image_match.match_condition[i].image_condition.related_id != add_node.self_id; i++)
-                        ;
-                    Neuro_Image_Item oritation_condition = image_match.match_condition[i].image_condition;
-
-                    if (oritation_condition.logic == 1) // 图像
-                    {
-                        oritation_condition.related_scale;
-                        oritation_condition.direction;
-                        oritation_condition.distance;
-
-                        // if() 匹配通过
-                        {
-                            image_match.match_condition[i].image_condition.related_id = 0;
-                            match_idx[q] = -1;
-                            image_match.need_condition_num -= 1;
-
-                            if (image_match.need_condition_num == 0) // 若全部条件满足，生成该节炄1�71ￄ1�77
-                            {
-                                vector<INDEX> source_node;
-                                source_node.reserve(image_match.node_num);
-
-                                for (int a = 0; a < image_match.node_num; a++)
-                                    source_node.push_back(image_match.node_idx_from[a]);
-
-                                char generate_kind;
-
-                                add_idx = new_upper_network_node_generate(source_node, generate_kind, scene_idx, 1);
-                                General_Node &new_node = General_Node_Storage[add_idx];
-                                ID id = image_match.match_result[0].image_result.related_id;
-                                new_node.self_id = id;
-                                curr_scene.Id_find_overall_node[id].push_back(add_idx);
-                            }
-                        }
-                    }
-                    else
-                    { // 概念
-                        // 同上
-                    }
-                }
+                return;
             }
         }
-    }
+        break;
+        case 8:
+        {
+            Neuro_Manner_Item manner_result = *(Neuro_Manner_Item *)(ptr);
 
-    fea += attribute_head.item_num;
-    ptr += attribute_head.item_num;
-    
-}
+            if (match_generate.need_condition_num)
+            {
+                match_generate.match_result[match_generate.result_num].manner_item = manner_result;
+                match_generate.result_num += 1;
 
+                return;
+            }
 
-inline void Text_Cognition_Generate_Module(
-    INDEX pos_idx, INDEX scene_idx,
-    short &fea, int *&ptr,
-    Generate_Permit generate_permit = a_generate_permit)
-{
-    Text_Scene &curr_text_network = Text_Scene_Storage[scene_idx];
+            manner_result.manner_value;
 
-    vector<vector<INDEX>> &text_node_storage_list = curr_text_network.Text_node_space_from_record_list;
+            Focus_Object focus_object;
+            focus_object.kind = 2;
+            focus_object.target_idx;
 
-    vector<Variable_Attribute> All_Require_Object = curr_text_network.Require_object_list;
-    INDEX text_node_idx = pos_idx;
+            if (manner_result.target_kind == 1)
+            {
+                Require_Object require_object;
+                require_object.require_id_or_idx = manner_result.target_id;
+                require_object.require_kind = manner_result.manner_kind;
+                require_object.require_value = manner_result.manner_value;
+                add_scene_a_require_object(scene_idx, require_object);
 
-    General_Node curr_node = read_a_General_Node(text_node_idx);
-    ID curr_node_id = curr_node.self_id;
-
-    Attribute_Head_Item attribute_head = attribute_head_read(ptr);
-
-    char attribute_kind = attribute_head.attribute_kind;
-    char condition_kind;
-    char condition_num = attribute_head.condition_num;
-    char condition_size;
-
-    char result_kind;
-    int original_text_size = curr_text_network.original_text_size;
-
-    *(ptr + 1) += 1;
-
-    if (attribute_kind == 1)
-    {
-        Neuro_Text_Item text_condition = *(Neuro_Text_Item *)(ptr + 3);
-
-        ID neighbor_id = text_condition.target_id;
-
-        int left_distance = text_condition.left_distance;
-        int right_distance = text_condition.right_distance;
-        int distance_scale = text_condition.distance_scale;
-
-        int front_boundary = pos_idx + left_distance * distance_scale;
-        int back_boundary = pos_idx + right_distance * distance_scale;
-
-        if (front_boundary < 0)
-            front_boundary = 0;
-
-        if (back_boundary > original_text_size - 1)
-            back_boundary = original_text_size - 1;
-
-        char num = 0;
-
-        INDEX front_vec = front_boundary / 8;
-        INDEX back_vec = back_boundary / 8;
-
+            } else if (manner_result.target_kind == 2)
+            {
+                Require_Object require_object;
+                require_object.require_value = manner_result.manner_value;
+                add_scene_a_require_object(scene_idx, require_object);
+            }
+        }
+        }
         
-        if (text_condition.effect_kind == 1)
-        {
-            for (INDEX vec_idx = front_vec; vec_idx <= back_vec; vec_idx++)
-            {
-                vector<INDEX> &inside_list = text_node_storage_list[vec_idx];
-                int inside_size = inside_list.size();
-
-                for (int b = 8; b < inside_size; b++)
-                {
-                    INDEX object_idx = inside_list[b];
-                    Node_Text_Attribute object_attribute_text = read_a_Node_Text_Attribute(object_idx);
-
-                    if (object_attribute_text.idx > back_boundary && object_attribute_text.idx < front_boundary)
-                        continue;
-
-                    if (neighbor_id = General_Node_Storage[inside_list[b]].self_id)
-                        num += 1;
-                }
-            }
-
-            if (num)
-            {
-                *(ptr + 2) += 1;
-            }
-
-        }
-        else if (text_condition.effect_kind == 2)
-        {
-            for (INDEX vec_idx = front_vec; vec_idx <= back_vec; vec_idx++)
-            {
-                vector<INDEX> &inside_list = text_node_storage_list[vec_idx];
-                int inside_size = inside_list.size();
-
-                for (int b = 8; b < inside_size; b++)
-                {
-                    INDEX object_idx = inside_list[b];
-
-                    Node_Text_Attribute object_attribute_text = read_a_Node_Text_Attribute(object_idx);
-                    INDEX space_pos = object_attribute_text.idx;
-
-                    if (space_pos < front_boundary && space_pos > back_boundary)
-                        continue;
-
-                    if (neighbor_id = General_Node_Storage[object_idx].self_id)
-                        num += 1;
-                }
-            }
-
-            if (num)
-            {
-                *(ptr + 2) += 1;
-            }
-        }
-    }
-    else if (attribute_kind == 2)
-    {
-        vector<INDEX> condition_node_list;
-
-        char match_count = 0;
-
-        for (int b = 0; b < attribute_head.condition_num; b++)
-        {
-            if (condition_kind == 4)
-            {
-                Neuro_Text_Item text_condition_item = *(Neuro_Text_Item *)(ptr + 3 + b * 2);
-                ID need_id = text_condition_item.target_id;
-
-                INDEX front_boundary = pos_idx + text_condition_item.left_distance;
-                INDEX back_boundary = pos_idx + text_condition_item.right_distance;
-
-                char distance_scale = text_condition_item.distance_scale;
-
-                if (front_boundary < 0)
-                    front_boundary = 0;
-
-                if (back_boundary > original_text_size - 1)
-                    back_boundary = original_text_size - 1;
-
-                INDEX front_vec = front_boundary / 8;
-                INDEX back_vec = back_boundary / 8;
-
-                char condition_statify = 0;
-
-                if (text_condition_item.effect_kind == 1)
-                {
-                    for (INDEX vec_idx = front_vec; vec_idx <= back_vec && condition_statify == 0; vec_idx++)
-                    {
-                        vector<INDEX> &inside_list = text_node_storage_list[vec_idx];
-                        int inside_size = inside_list.size();
-
-                        for (int b = 8; b < inside_size; b++)
-                        {
-                            INDEX object_idx = inside_list[b];
-
-                            Node_Text_Attribute object_attribute_text = read_a_Node_Text_Attribute(object_idx);
-                            INDEX space_pos = object_attribute_text.idx;
-
-                            if (space_pos < front_boundary && space_pos > back_boundary)
-                                continue;
-
-                            if (need_id = General_Node_Storage[object_idx].self_id)
-                                match_count++;
-                        }
-                    }
-
-                    if (condition_statify == 0)
-                    {
-                        ;
-                    }
-                }
-                else if (text_condition_item.effect_kind == 2)
-                {
-                    for (INDEX vec_idx = front_vec; vec_idx <= back_vec && condition_statify == 0; vec_idx++)
-                    {
-                        vector<INDEX> &inside_list = text_node_storage_list[vec_idx];
-                        int inside_size = inside_list.size();
-
-                        for (int b = 8; b < inside_size; b++)
-                        {
-                            INDEX object_idx = inside_list[b];
-
-                            Node_Text_Attribute scan_object_attribute = read_a_Node_Text_Attribute(object_idx);
-                            int space_pos = scan_object_attribute.idx;
-
-                            if (space_pos < front_boundary && front_boundary > back_boundary)
-                                continue;
-
-                            if (need_id = General_Node_Storage[inside_list[b]].self_id)
-                            {
-                                match_count += 1;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (condition_statify == 0)
-                    {
-                        ;
-                    }
-                }
-            }
-            else if (condition_kind == 5)
-            {
-
-                Neuro_Manner_Item manner_result = *(Neuro_Manner_Item *)(ptr + 2 + condition_num * condition_size);
-
-                manner_result.manner_value;
-
-                Focus_Object focus_object;
-                focus_object.kind = 2;
-                focus_object.target_idx;
-
-                if (manner_result.target_kind == 1)
-                {
-                    Require_Object require_object;
-                    require_object.require_id_or_idx = manner_result.effect_target;
-                    require_object.require_kind = manner_result.manner_kind;
-                    require_object.require_value = manner_result.manner_value;
-                    add_scene_a_local_require_object(text_node_idx, require_object);
-                }
-                else if (manner_result.target_kind == 2)
-                {
-                    Require_Object require_object;
-                    require_object.require_value = manner_result.manner_value;
-                    add_scene_a_local_require_object(text_node_idx, require_object);
-                }
-            }
-        }
-
-        if (match_count == condition_num)
-        {
-            if (result_kind == 4)
-            {
-                Neuro_Text_Item result_item = *(Neuro_Text_Item *)(ptr + 3 + attribute_head.condition_num * 2 + 1);
-
-                new_upper_network_node_generate(condition_node_list, 3, scene_idx, 2);
-            }
-            else if (result_kind == 1)
-            {
-                ;
-            }
-            else if (result_kind == 5)
-            {
-                ;
-            }
-        }
-
-        // 匹配可能有需求的节点
-    }
-    else if (attribute_kind == 4)
-    {
-        ;
     }
 
-    ptr += attribute_head.item_num;
-    fea += attribute_head.item_num;
-}
-
-
-inline void Time_Cognition_Generate_Module(
-    INDEX curr_node_idx, INDEX scene_idx,
-    short &fea, int *&ptr,
-    Generate_Permit generate_permit = a_generate_permit)
-{
-    Attribute_Head_Item attribute_head = attribute_head_read(ptr);
-    char attribute_kind = attribute_head.attribute_kind;
-
-    char condition_kind;
-    char condition_num = attribute_head.condition_num;
-    char condition_size = 0;
-
-    char result_kind;
-    char result_num = attribute_head.result_num;
-    char result_size = 0;
-
-    switch (attribute_kind)
-    {
-        ;
-    }
 }
 
 
 vector<INDEX> A_Neuro_Cognition_Generate(
     INDEX curr_node_idx, INDEX scene_idx,
-    char scene_kind, Generate_Permit generate_permit = a_generate_permit)
+    char scene_kind, Generate_Permit generate_permit = fill_permit)
 {
     vector<INDEX> generate_node_idx_list;
     generate_node_idx_list.reserve(32);
@@ -1934,510 +1827,424 @@ vector<INDEX> A_Neuro_Cognition_Generate(
 
     (first_ptr);
 
+    float forward_predict_stability = *(first_ptr + 4);
+    float backward_predict_stability = *(first_ptr + 5);
 
-    if (scene_kind == 1)
+    float upward_predict_ability = *(first_ptr + 6);
+    float downward_predict_ability = *(first_ptr + 7);
+    float left_predict_ability = *(first_ptr + 8);
+    float right_predict_ability = *(first_ptr + 9);
+
+    for (short fea = 0; fea < neuro_head.used_item_num;)
     {
-        for (short fea = 0; fea < neuro_head.used_item_num;)
-        {
-            General_Cognition_Generate_Module(curr_node_idx, scene_idx, fea, ptr, generate_permit);
-        }
+        inside_attribute_cognition_generate_module(curr_node_idx, scene_idx, scene_kind,
+            fea, ptr, generate_permit);
     }
-
-    if (scene_kind == 2)
-    {
-        float forward_predict_stability = *(first_ptr + 4);
-        float backward_predict_stability = *(first_ptr + 5);
-
-        float upward_predict_ability = *(first_ptr + 6);
-        float downward_predict_ability = *(first_ptr + 7);
-        float left_predict_ability = *(first_ptr + 8);
-        float right_predict_ability = *(first_ptr + 9);
-
-        Require_Object require_object;
-
-        for (short fea = 0; fea < neuro_head.used_item_num;)
-        {
-            Image_Cognition_Generate_Module(curr_node_idx, scene_idx, fea, ptr, generate_permit);
-        }
-    }
-
-    if (scene_kind == 3)
-    {
-        INDEX pos_idx = curr_node_idx;
-
-        float forward_predict_stability = *(first_ptr + 4);
-        float backward_predict_stability = *(first_ptr + 5);
-
-        // 棢�索生戄1�71ￄ1�77 遍历神经元属怄1�71ￄ1�77
-        for (short fea = 0; fea < neuro_head.used_item_num;)
-        {
-            Text_Cognition_Generate_Module(pos_idx, scene_idx, fea, ptr, generate_permit);
-        }
-    }
-
-    if (scene_kind == 4)
-    {
-        for (short fea = 0; fea < neuro_head.used_item_num;)
-        {
-            Time_Cognition_Generate_Module(curr_node_idx, scene_idx, fea, ptr, generate_permit);
-        }
-    }
-
 
     return generate_node_idx_list;
 }
 
 
-
-inline void Image_Imagine_Generate_Module(
-    INDEX curr_node_idx, INDEX scene_idx, short &fea, int *&ptr,
-    Generate_Permit generate_permit = a_generate_permit)
+inline vector<INDEX> inside_attribute_simulate_generate_moudle(
+    int*& ptr, short& fea, INDEX curr_node_idx,
+    char scene_idx, char scene_kind, Generate_Permit& generate_permit)
 {
-    char condition_image_permit = generate_permit.condition_image_permit;
-    char condition_time_permit = generate_permit.condition_time_permit;
-    char condition_number_permit = generate_permit.condition_number_permit;
-    char condition_text_permit = generate_permit.condition_text_permit;
-    char conditon_action_permit = generate_permit.conditon_action_permit;
+    INDEX general_scene_idx = 0;
+    INDEX image_scene_idx = 0;
+    INDEX time_scene_idx = 0;
+    INDEX text_scene_idx = 0;
 
-    char result_image_permit = generate_permit.result_image_permit;
-    char result_time_permit = generate_permit.result_time_permit;
-    char result_number_permit = generate_permit.result_number_permit;
-    char result_text_permit = generate_permit.result_text_permit;
-    char result_belief_permit = generate_permit.result_belief_permit;
-    char result_manner_permit = generate_permit.result_manner_permit;
-    //
+    if(scene_kind == 1)
+        general_scene_idx = scene_idx;
+    else if(scene_kind == 2)
+        image_scene_idx = scene_idx;
+    else if(scene_kind == 3)
+        time_scene_idx = scene_idx;
+    else if(scene_kind == 4)
+        text_scene_idx = scene_idx;
 
-    General_Scene &simu_scene = General_Scene_Storage[scene_idx];
+    General_Scene& curr_general_scene = General_Scene_Storage[general_scene_idx];
+    Image_Scene& curr_image_scene = Image_Scene_Storage[image_scene_idx];
+    Time_Scene& curr_time_scene = Time_Scene_Storage[time_scene_idx];
+    Text_Scene& curr_text_scene = Text_Scene_Storage[text_scene_idx];
 
     General_Node curr_node = read_a_General_Node(curr_node_idx);
     ID curr_node_id = curr_node.self_id;
 
-    Node_Image_Attribute node_image_attribute = read_a_Node_Image_Attribute(curr_node_idx);
-
     int stat_num = *(ptr + 1);
-    int realize_num = *(ptr + 2);
-    float probability = realize_num / stat_num;
+    int realize_num =*(ptr + 2);
+    float attribute_probability = stat_num/realize_num;
 
-    Attribute_Head_Item attribute_head = attribute_head_read(ptr);
 
-    char condition_kind;
-    char condition_num = attribute_head.condition_num;
-    char condition_size;
+    vector<INDEX> generate_node_list;
 
-    char result_kind;
-    char result_num = attribute_head.result_num;
-    char result_size;
+    Attribute_Head attribute_head = attribute_head_read(ptr);
 
-    switch (attribute_head.attribute_kind)
+    char item_kind;
+    char item_num = attribute_head.result_num + attribute_head.condition_num;
+    char item_size = 0;
+
+    Link_Variable_Attribute self_to_generate_attribute = {.filler_item = filler_item};
+    Link_Variable_Attribute generate_to_self_arrribute = {.filler_item = filler_item};
+
+    bool attribute_kind_permit[5];
+    attribute_kind_permit[1] = generate_permit.stat_attribute_permit;
+    attribute_kind_permit[2] = generate_permit.upper_attribute_permit;
+    attribute_kind_permit[3] = generate_permit.lower_attribute_permit;
+    attribute_kind_permit[4] = generate_permit.category_attribute_permit;
+
+    // float stat_attribute_require_need_rate;
+    // float upper_attribute_require_need_rate;
+    // float lower_attribute_require_need_rate;
+    // float category_attribute_require_need_rate;
+
+    INDEX gen_node_idx;
+    General_Node generate_node;
+    bool have_generate_node = 0;
+    Require_Object node_organise_require;
+    ID generate_id;
+    Require_Object sequence_require;
+
+    char load_attribute_array_num = 0;
+    Link_Variable_Attribute load_attribute_array[4] = {filler_variable_attribute, filler_variable_attribute,
+        filler_variable_attribute, filler_variable_attribute};
+    
+    int is_joint = 0;
+
+    if(attribute_kind_permit[attribute_head.attribute_kind] != 1)
     {
-        case 1:
+        for (int a = 0; a < item_num; a++ )
         {
-            if (result_kind == 1 && result_image_permit)
-            {
-                Neuro_Image_Item image_result = *(Neuro_Image_Item *)(ptr + 2);
+            return_item_kind_and_size(ptr, item_kind, item_size);
+        }
+    } else {
+        
+        for (int a = 0; a < item_num; a++ )
+        {
+            return_item_kind_and_size(ptr, item_kind, item_size);
 
-                ID generate_id = image_result.related_id;
-                char related_scale = image_result.related_scale;
-                char distance = image_result.distance;
-                char direction = image_result.direction;
-                char distance_scale = image_result.distance_scale;
-                char direction_scale = image_result.direction_scale;
-                char logic = image_result.logic;
+            if(item_kind > 10)
+            {
+                is_joint = 1;
+                item_kind -= 10;
+            }
+
+            switch(item_kind)
+            {
+            case 1:
+            {
+                if(generate_permit.result_image_permit == 0)
+                    continue;
+
+                Neuro_Image_Item image_item = *(Neuro_Image_Item *)(ptr);
+                
+                have_generate_node = 1;
+                generate_id = image_item.target_id;
+                generate_node.self_id = image_item.target_id;
+                generate_node.node_kind = image_item.logic;
+                generate_node.complete_or_probability = curr_node.complete_or_probability * attribute_probability;
+                generate_node.node_attention = curr_node.node_attention * attribute_probability;
+
+                char distance = image_item.distance;
+                char direction = image_item.direction;
+                char distance_scale = image_item.distance_scale;
+                char direction_scale = image_item.direction_scale;
 
                 char min_dir = direction - (direction_scale - 1);
                 char max_dir = direction + (direction_scale - 1);
                 char min_len = distance - (distance_scale - 1);
                 char max_len = distance + (distance_scale + 1);
 
-                dir_extend_region(node_image_attribute.x, node_image_attribute.y,
+                self_to_generate_attribute = {.neuro_image_item = image_item};
+                Node_Image_Single_Attribute curr_node_image_attribute = read_a_Node_Image_Attribute(curr_node_idx);
+
+                dir_extend_region(curr_node_image_attribute.x, curr_node_image_attribute.y,
                     min_dir, max_dir, min_len, max_len);
 
-                Neuro_Image_Item simu_image_attri;
-                simu_image_attri.direction = direction;
-                simu_image_attri.direction_scale = direction_scale;
-                simu_image_attri.distance = distance;
-                simu_image_attri.distance_scale = distance_scale;
-                simu_image_attri.logic = logic;
-                simu_image_attri.related_id = generate_id;
+                Node_Image_Single_Attribute generate_node_image_attribute;
 
-                General_Node simu_node;
-                simu_node.self_id = generate_id;
-                simu_node.complete_or_probability = probability;
-                simu_node.node_attention = curr_node.node_attention * probability;
+                have_generate_node = 1;
+                generate_node.self_id = image_item.target_id;
+                generate_node.node_kind = 1;
+                generate_node.exist_type = 4;
+                generate_node.complete_or_probability = attribute_probability;
+                generate_node.belong_scene_kind = scene_kind;
+                generate_node.self_attribute[0] = {.node_image_single_attribute = generate_node_image_attribute};
 
-                INDEX simu_idx = create_a_General_Node(simu_node);
+                gen_node_idx = create_a_General_Node(generate_node);
 
-                char reserve_direction = simu_image_attri.direction - 16;
-                reserve_direction = reserve_direction > 0 ? reserve_direction : reserve_direction + 32;
-                simu_image_attri.direction = reserve_direction;
-
-                Variable_Attribute va = {.neuro_image_item = simu_image_attri};
-                push_back_a_variable_object_to_General_Node(simu_idx, va);
-
-                push_back_a_node_to_General_Scene(simu_idx, scene_idx);
+                image_item.direction = (direction - 16) > 0 ? (direction - 16) : (direction + 16);
+                generate_to_self_arrribute = {.neuro_image_item = image_item};
             }
-            else if (result_kind == 2 && result_time_permit)
+            break;
+            case 2:
             {
+                if(generate_permit.result_number_permit == 0)
+                    continue;
 
-                Neuro_Time_Item time_result = *(Neuro_Time_Item *)(ptr + 2);
+                Neuro_Number_Item number_item = *(Neuro_Number_Item *)(ptr);
+                
+                load_attribute_array[load_attribute_array_num].neuro_number_item = number_item;
 
-                ID generate_id = time_result.related_id;
-                char time_range = time_result.time_left_range;
-                char time_scale = time_result.time_scale;
-
-                Neuro_Time_Item simu_time_attri;
-                simu_time_attri.time_left_range = time_range;
-                simu_time_attri.time_scale = time_scale;
-                simu_time_attri.related_id = generate_id;
-
-                General_Node simu_node;
-                simu_node.self_id = generate_id;
-                simu_node.complete_or_probability = probability;
-                simu_node.node_attention = curr_node.node_attention * probability;
+                is_joint = 0;
             }
-            else if (result_kind == 4 && result_number_permit)
+            break;
+            case 3:
             {
+                if(generate_permit.result_time_permit == 0)
+                    continue;
+                
+                Neuro_Time_Item time_item = *(Neuro_Time_Item *)(ptr);
 
-                Neuro_Number_Item number_result = *(Neuro_Number_Item *)(ptr + 2);
-                int number_I = number_result.number_I;
-                int number_II = number_result.number_II;
-                char logic = number_result.logic;
-                char detail = number_result.detail;
+                Node_Time_Single_Attribute generate_node_time_attribute;
+                
+                have_generate_node = 1;
+                generate_id = time_item.target_id;
+                generate_node.self_id = time_item.target_id;
+                generate_node.node_kind = time_item.logic;
+                generate_node.exist_type = 4;
+                generate_node.complete_or_probability = attribute_probability;
+                generate_node.belong_scene_kind = scene_kind;
 
-                Neuro_Number_Item simu_num_attri;
-                simu_num_attri.number_I = number_I;
-                simu_num_attri.number_II = number_II;
-                simu_num_attri.logic = logic;
-                simu_num_attri.detail = detail;
+                gen_node_idx = create_a_General_Node(generate_node);
+                curr_time_scene.Id_find_overall_node[time_item.target_id].push_back(gen_node_idx);
 
-                General_Node simu_node;
+                self_to_generate_attribute = {.neuro_time_item = time_item};
+
+                time_item.time_left_range = -time_item.time_left_range;
+                time_item.time_right_range = -time_item.time_right_range;
+                generate_to_self_arrribute = {.neuro_time_item = time_item};
             }
-        }
-        break;
-        case 2:
-        {
-            if (condition_kind == 1 && result_kind == 1 && condition_image_permit && result_image_permit)
+            break;
+            case 4:
             {
-                ID result_generate_id = *(ptr + 3 + condition_size * condition_num + result_size);
+                if(generate_permit.result_text_permit == 0)
+                    continue;
+                
+                Neuro_Text_Item text_item = *(Neuro_Text_Item *)(ptr);
+
+                Node_Text_Single_Attribute generate_node_text_attribute;
+
+                have_generate_node = 1;
+                generate_id = text_item.target_id;
+                generate_node.self_id = text_item.target_id;
+                generate_node.node_kind = text_item.logic;
+                generate_node.exist_type = 4;
+                generate_node.complete_or_probability = attribute_probability;
+
+                gen_node_idx = create_a_General_Node(generate_node);
+
+                self_to_generate_attribute = {.neuro_text_item = text_item};
+
+                text_item.left_distance = -text_item.left_distance;
+                text_item.right_distance = - text_item.right_distance;
+
+                generate_to_self_arrribute = {.neuro_text_item = text_item};
+
+                sequence_require.require_id_or_idx = gen_node_idx;
+                if(attribute_head.attribute_kind == 1)
+                {
+                    sequence_require.require_kind = 30;
+                    sequence_require.require_value = attribute_probability;
+                }
+                
             }
-        }
-        break;
-        case 3:
-        {
-        }
-        break;
-        case 4:
-        {
-        }
-        break;
-        case 6:
-        {
-            if (generate_permit.conditon_action_permit != 1)
-                break;
-        }
-        break;
-        case 7:
-        {
-            Neuro_Manner_Item manner_item = *(Neuro_Manner_Item *)(ptr + 2);
+            break;
+            case 5:
+            {
+                if(generate_permit.result_concept_permit == 0)
+                    continue;
+                
+                Neuro_Concept_Item concept_item = *(Neuro_Concept_Item *)(ptr);
+                
+                have_generate_node = 1;
+                generate_id = concept_item.target_id;
+                generate_node.self_id = concept_item.target_id;
+                generate_node.node_kind = concept_item.logic;
+                generate_node.exist_type = 4;
+                generate_node.complete_or_probability = attribute_probability;
 
-            manner_item.manner_kind;
+                gen_node_idx = create_a_General_Node(generate_node);
+                
+                node_organise_require.require_id_or_idx = gen_node_idx;
 
-            Require_Object require_object;
-        }
-    }
+                self_to_generate_attribute = {.neuro_concept_item = concept_item};
 
-    fea += attribute_head.item_num;
-    ptr += attribute_head.item_num;
-}
+                generate_to_self_arrribute = {.neuro_concept_item = concept_item};
+            }
+            break;
+            case 6:
+            {
+                if(generate_permit.result_action_permit == 0)
+                    continue;
+                
+                Neuro_Action_Item action_item = *(Neuro_Action_Item *)(ptr);
 
+                Node_Base_Action_Attribute generate_node_base_action_attribute;
 
-inline void Text_Imagine_Generate_Moudle(INDEX curr_node_idx, INDEX scene_idx,
-    short &fea, int *&ptr,
-    Generate_Permit simulate_permit = a_generate_permit)
-{
-    Text_Scene &curr_text_network = Text_Scene_Storage[scene_idx];
+                have_generate_node = 1;
+                generate_id = action_item.target_id;
+                generate_node.self_id = action_item.target_id;
+                generate_node.node_kind = action_item.logic;
+                generate_node.exist_type = 4;
+                generate_node.complete_or_probability = attribute_probability;
 
-    Image_Scene curr_simu_scene;
+                INDEX gen_node_idx = create_a_General_Node(generate_node);
 
-    General_Node curr_node = read_a_General_Node(curr_node_idx);
-    ID curr_node_id = curr_node.self_id;
+                node_organise_require.require_id_or_idx = gen_node_idx;
 
-    Node_Text_Attribute text_attribute = read_a_Node_Text_Attribute(curr_node_idx);
+                self_to_generate_attribute = {.neuro_action_item = action_item};
 
-    Attribute_Head_Item attribute_head = attribute_head_read(ptr);
+                generate_to_self_arrribute = {.neuro_action_item = action_item};
+            }
+            break;
+            case 7:
+            {
+                if(generate_permit.result_belief_permit == 0)
+                    continue;
+                
+                Neuro_Belief_Item belief_item = *(Neuro_Belief_Item *)(ptr);
 
-    char condition_kind;
-    char condition_num = attribute_head.condition_num;
-    char condition_size = 0;
+                have_generate_node = 1;
+                generate_id = belief_item.target_id;
+                generate_node.self_id = belief_item.target_id;
+                generate_node.node_kind = belief_item.logic;
+                generate_node.exist_type = 4;
+                generate_node.complete_or_probability = attribute_probability;
 
-    char result_kind;
-    char result_num = attribute_head.result_num;
-    char result_size = 0;
+                INDEX gen_node_idx = create_a_General_Node(generate_node);
+                curr_general_scene.Id_find_overall_node[belief_item.target_id].push_back(gen_node_idx);
 
-    ptr + 3;
+                self_to_generate_attribute = {.neuro_belief_item = belief_item};
 
-    switch (attribute_head.attribute_kind)
-    {
-    case 1:
-    {
-        return_item_kind_and_size(ptr, result_kind, result_size);
-        Neuro_Text_Item text_condition = *(Neuro_Text_Item *)(ptr);
+                generate_to_self_arrribute = {.neuro_belief_item = belief_item};
+            }
+            break;
+            case 8:
+            {
+                if(generate_permit.result_manner_permit == 0)
+                    continue;
+                
+                Neuro_Manner_Item manner_item = *(Neuro_Manner_Item *)(ptr);
 
-        ID generate_id = text_condition.target_id;
+                Require_Object require_object;
+                require_object.require_kind = manner_item.manner_kind;
+                require_object.require_value = manner_item.manner_value;
+                require_object.require_id_or_idx = manner_item.target_id;
 
-        char logic = text_condition.logic;
-        char left_distance = text_condition.left_distance;
-        char right_distance = text_condition.right_distance;
-        char distance_scale = text_condition.distance_scale;
+                Link_Variable_Attribute va{.require_object = require_object};
+                Value_Sort_Unit new_unit;
+                new_unit.value = require_object.require_value;
 
-        General_Node generate_node;
-        generate_node.self_id = generate_id;
-        generate_node.node_kind = 1;
-        generate_node.belong_scene_kind = 3;
-        INDEX cre_idx = create_a_General_Node(generate_node);
+                if(scene_kind == 1)
+                {
+                    new_unit.target_idx = curr_general_scene.Require_object_list.size();
+                    curr_general_scene.Require_object_list.push_back(va);
+                    curr_general_scene.Require_object_sort.insert_a_unit(new_unit);
+                }
+                else if(scene_kind == 2)
+                {
+                    new_unit.target_idx = curr_image_scene.Require_object_list.size();
+                    curr_image_scene.Require_object_list.push_back(va);
+                    curr_image_scene.Require_object_sort.insert_a_unit(new_unit);
+                }
+                else if(scene_kind == 3)
+                {
+                    new_unit.target_idx = curr_time_scene.Require_object_list.size();
+                    curr_time_scene.Require_object_list.push_back(va);
+                    curr_time_scene.Require_object_sort.insert_a_unit(new_unit);
+                }
+                else if(scene_kind == 4)
+                {
+                    new_unit.target_idx = curr_text_scene.Require_object_list.size();
+                    curr_text_scene.Require_object_list.push_back(va);
+                    curr_text_scene.Require_object_sort.insert_a_unit(new_unit);
+                }
 
-        Link_Node_Attribute link;
+            }
+            }
 
-        link.link_idx_or_id = cre_idx;
-        link.link_Attribute = 2;
-        link.link_Kind = 22;
-        Variable_Attribute self_to_generate_link = {.link_node_attribute = link};
-        push_back_a_variable_object_to_General_Node(curr_node_idx, self_to_generate_link);
-
-        link.link_idx_or_id = curr_node_idx;
-        link.link_Attribute = 2;
-        link.link_Kind = 21;
-        Variable_Attribute generate_to_self_link = {.link_node_attribute = link};
-        push_back_a_variable_object_to_General_Node(cre_idx, generate_to_self_link);
-    }
-    break;
-    case 2:
-    {
-        return_item_kind_and_size(ptr, condition_kind, condition_size);
-        Neuro_Text_Item text_result = *(Neuro_Text_Item *)(ptr);
-
-        ID generate_id = text_result.target_id;
-
-        char left_distance = text_result.left_distance;
-        char right_distance = text_result.right_distance;
-        char distance_scale = text_result.distance_scale;
-    }
-    break;
-    case 3:
-    {
-        for (int a = 0; a < result_num; a++)
-        {
-            return_item_kind_and_size(ptr, result_kind, result_size);
-            Neuro_Text_Item text_result = *(Neuro_Text_Item *)(ptr + 2 + a);
-
-            ID generate_id = text_result.target_id;
-
-            char logic = text_result.logic;
-            char left_distance = text_result.left_distance;
-            char right_distance = text_result.right_distance;
-            char distance_scale = text_result.distance_scale;
-        }
-    }
-    break;
-    case 4:
-    {
-        ;
-    }
-    }
-}
-
-inline void Time_Imagine_Generate_Moudle(INDEX curr_node_idx, INDEX scene_idx,
-    short &fea, int *&ptr, Generate_Permit simulate_permit = a_generate_permit)
-{
-    Time_Scene &curr_time_network = Time_Scene_Storage[scene_idx];
-
-    Image_Scene curr_simu_scene;
-
-    General_Node curr_node = read_a_General_Node(curr_node_idx);
-    ID curr_node_id = curr_node.self_id;
-    Node_Text_Attribute text_attribute = read_a_Node_Text_Attribute(curr_node_idx);
-
-    Attribute_Head_Item attribute_head = attribute_head_read(ptr);
-    char condition_kind;
-    char condition_num = attribute_head.condition_num;
-    char condition_size = 0;
-    char result_kind;
-    char result_num = attribute_head.result_num;
-    char result_size = 0;
-
-    ptr += 2;
-
-    switch (attribute_head.attribute_kind)
-    {
-        case 1:
-        {
-            Neuro_Time_Item time_result = *(Neuro_Time_Item *)(ptr);
-
-            ID generate_id = time_result.related_id;
-
-            char logic = time_result.logic;
-            char time_scale = time_result.time_scale;
-            char time_range = time_result.time_left_range;
-
-            General_Node generate_node;
-            INDEX cre_idx = create_a_General_Node(generate_node);
-
-            generate_node.self_id = generate_id;
-            generate_node.node_kind = 1;
-            generate_node.belong_scene_kind = 3;
+            INDEX cre_node_idx = create_a_General_Node();
 
             Link_Node_Attribute link;
-
-            link.link_idx_or_id = cre_idx;
-            link.link_Attribute = 2;
-            link.link_Kind = 22;
-            Variable_Attribute self_to_generate_link = {.link_node_attribute = link};
-            push_back_a_variable_object_to_General_Node(curr_node_idx, self_to_generate_link);
+            link.link_idx_or_id = cre_node_idx;
+            if(attribute_head.attribute_kind == 3)
+                link.link_Kind = 1;
+            Link_Variable_Attribute self_to_generate_link = {.link_node_attribute = link};
+            push_back_a_link_to_Node(curr_node_idx, self_to_generate_link);
+            push_back_a_link_to_Node(curr_node_idx, self_to_generate_attribute);
 
             link.link_idx_or_id = curr_node_idx;
-            link.link_Attribute = 2;
-            link.link_Kind = 21;
-            Variable_Attribute generate_to_self_link = {.link_node_attribute = link};
-            push_back_a_variable_object_to_General_Node(cre_idx, generate_to_self_link);
-        }
-        break;
-        case 2:
-        {
-            for (int a = 0; a < condition_num + result_num; a++)
+            if(attribute_head.attribute_kind == 3)
+                link.link_Kind = 2;
+            Link_Variable_Attribute generate_to_self_link = {.link_node_attribute = link};
+            push_back_a_link_to_Node(cre_node_idx, generate_to_self_link);
+            push_back_a_link_to_Node(cre_node_idx, generate_to_self_arrribute);
+            
+            generate_node_list.push_back(gen_node_idx);
+
+            if(have_generate_node)
             {
-                return_item_kind_and_size(ptr, condition_kind, condition_size);
-                Neuro_Time_Item time_generate = *(Neuro_Time_Item *)(ptr);
+                push_back_a_node_to_scene(scene_idx, gen_node_idx, scene_kind);
 
-                char logic = time_generate.logic;
-                char time_range = time_generate.time_left_range;
-                char time_scale = time_generate.time_scale;
+                node_organise_require.require_kind;
+                node_organise_require.require_object_kind = 1;
+                node_organise_require.require_value = attribute_probability * curr_node.total_require;
+                Link_Variable_Attribute va_{.require_object = node_organise_require};
+                Value_Sort_Unit new_unit;
+                new_unit.value = node_organise_require.require_value;
 
-                General_Node result_node;
-                ID generate_id = time_generate.related_id;
-                result_node.self_id = generate_id;
+                curr_node.total_derive_require += node_organise_require.require_value;
+
+                if(scene_kind == 1)
+                {
+                    curr_general_scene.Id_find_overall_node[generate_id].push_back(gen_node_idx);
+                    
+                    new_unit.target_idx = curr_general_scene.Require_object_list.size();
+                    curr_general_scene.Require_object_list.push_back(va_);
+                    curr_general_scene.Require_object_sort.insert_a_unit(new_unit);
+                }
+                else if(scene_kind == 2)
+                {
+                    curr_image_scene.Id_find_overall_node[generate_id].push_back(gen_node_idx);
+
+                    new_unit.target_idx = curr_image_scene.Require_object_list.size();
+                    curr_image_scene.Require_object_list.push_back(va_);
+                    curr_image_scene.Require_object_sort.insert_a_unit(new_unit);
+                }
+                else if(scene_kind == 3)
+                {
+                    curr_time_scene.Id_find_overall_node[generate_id].push_back(gen_node_idx);
+
+                    new_unit.target_idx = curr_time_scene.Require_object_list.size();
+                    curr_time_scene.Require_object_list.push_back(va_);
+                    curr_time_scene.Require_object_sort.insert_a_unit(new_unit);
+                }
+                else if(scene_kind == 4)
+                {
+                    curr_text_scene.Id_find_overall_node[generate_id].push_back(gen_node_idx);
+                    
+                    new_unit.target_idx = curr_text_scene.Require_object_list.size();
+                    curr_text_scene.Require_object_list.push_back(va_);
+                    curr_text_scene.Require_object_sort.insert_a_unit(new_unit);
+                }
+
+                have_generate_node = 0;
             }
         }
-        break;
-        case 3:
-        {
-            for (int a = 0; a < result_num; a++)
-            {
-                return_item_kind_and_size(ptr, result_kind, result_size);
-                Neuro_Time_Item time_result = *(Neuro_Time_Item *)(ptr);
-
-                ID generate_id = time_result.related_id;
-
-                char logic = time_result.logic;
-                char time_range = time_result.time_left_range;
-                char time_scale = time_result.time_scale;
-            }
-        }
-        break;
-        case 4:
-        {
-            ;
-        }
     }
-}
-
-inline void General_Imagine_Generate_Moudle(INDEX curr_node_idx, INDEX scene_idx,
-    short &fea, int *&ptr, Generate_Permit simulate_permit = a_generate_permit)
-{
-    General_Scene &curr_general_network = General_Scene_Storage[scene_idx];
-
-    General_Node curr_node = read_a_General_Node(curr_node_idx);
-    ID curr_node_id = curr_node.self_id;
-
-    Node_Text_Attribute text_attribute = read_a_Node_Text_Attribute(curr_node_idx);
-
-    Attribute_Head_Item attribute_head = attribute_head_read(ptr);
-
-    char condition_kind;
-    char condition_num = attribute_head.condition_num;
-    char condition_size = 0;
-
-    char result_kind;
-    char result_num = attribute_head.result_num;
-    char result_size = 0;
-
-    switch (attribute_head.attribute_kind)
-    {
-    case 1:
-    {
-        Neuro_Text_Item text_condition = *(Neuro_Text_Item *)(ptr + 2);
-
-        ID generate_id = text_condition.target_id;
-
-        char logic = text_condition.logic;
-        char left_distance = text_condition.left_distance;
-        char right_distance = text_condition.right_distance;
-        char distance_scale = text_condition.distance_scale;
-
-        
-        General_Node generate_node;
-        generate_node.self_id = generate_id;
-        generate_node.node_kind = 1;
-        generate_node.belong_scene_kind = 3;
-        INDEX cre_idx = create_a_General_Node();
-
-        Link_Node_Attribute link;
-
-        link.link_idx_or_id = cre_idx;
-        link.link_Attribute = 2;
-        link.link_Kind = 22;
-        Variable_Attribute self_to_generate_link = {.link_node_attribute = link};
-        push_back_a_variable_object_to_General_Node(curr_node_idx, self_to_generate_link);
-
-        link.link_idx_or_id = curr_node_idx;
-        link.link_Attribute = 2;
-        link.link_Kind = 21;
-        Variable_Attribute generate_to_self_link = {.link_node_attribute = link};
-        push_back_a_variable_object_to_General_Node(cre_idx, generate_to_self_link);
-    }
-    break;
-    case 2:
-    {
-        Neuro_Text_Item text_result = *(Neuro_Text_Item *)(ptr + 2);
-
-        unsigned int generate_id = text_result.target_id;
-
-        char logic = text_result.logic;
-        char left_distance = text_result.left_distance;
-        char right_distance = text_result.right_distance;
-        char distance_scale = text_result.distance_scale;
-    }
-    break;
-    case 3:
-    {
-        for (int a = 0; a < result_num; a++)
-        {
-            Neuro_Text_Item text_result = *(Neuro_Text_Item *)(ptr + 2 + a);
-
-            ID generate_id = text_result.target_id;
-
-            char logic = text_result.logic;
-            char left_distance = text_result.left_distance;
-            char right_distance = text_result.right_distance;
-            char distance_scale = text_result.distance_scale;
-        }
-    }
-    break;
-    case 4:
-    {
-        ;
-    }
-    }
+    
+    return generate_node_list;
 }
 
 
 vector<INDEX> A_Neuro_Simulate_Generate(
-    INDEX curr_node_idx, INDEX scene_idx,
-    char scene_kind,  Generate_Permit simulate_permit = a_generate_permit)
+    INDEX curr_node_idx, INDEX scene_idx, char scene_kind,
+    Generate_Permit generate_permit = fill_permit)
 {
-    vector<INDEX> generate_node_idx_list; // 生成特征
+    vector<INDEX> generate_node_idx_list;
     generate_node_idx_list.reserve(32);
 
-    // 濢�活拦戄1�71ￄ1�77
     if (curr_node_idx == 0)
         return generate_node_idx_list;
 
@@ -2447,10 +2254,9 @@ vector<INDEX> A_Neuro_Simulate_Generate(
     if (self_id == 0 || curr_node.node_attention < 10)
         return generate_node_idx_list;
 
-    int *first_ptr = node_find(self_id); // 头部位置指针
+    int *first_ptr = node_find(self_id);
     int *ptr = first_ptr;
 
-    // 若包被删除，填入待做任务，未完成
     if (ptr == 0)
     {
         add_to_Will_Read_Neuro_Queue(self_id);
@@ -2459,380 +2265,311 @@ vector<INDEX> A_Neuro_Simulate_Generate(
     }
 
     Neuro_Head_Item neuro_head = neuro_head_read(*ptr);
-    ptr += 16; // 指针转入特征位置
+    ptr += 16;
 
-    // 神经元使用记录加丢�
     *(first_ptr + 1) += 1;
 
-    // 无条件模拟，允许生成含统计概率的模拟节点
-    // 含行动模拟，允许额外生成行动节点
-
-    // 1、图像工作节点生戄1�71ￄ1�77
-    if (scene_kind == 1)
+    for (short fea = 0; fea < neuro_head.used_item_num;)
     {
-        // 模拟生成
-        for (short fea = 0; fea < neuro_head.used_item_num;)
-        {
-            Image_Imagine_Generate_Module(curr_node_idx, scene_idx, fea, ptr, simulate_permit);
-        }
-
-        curr_node.was_active = 1;
+        vector<INDEX> add_vec = inside_attribute_simulate_generate_moudle(ptr, fea, curr_node_idx, scene_idx, scene_kind, generate_permit);
+        generate_node_idx_list.insert(add_vec.begin(), add_vec.end(), generate_node_idx_list.end() );
     }
 
-    // 2、文本工作节点生戄1�71ￄ1�77
-    if (scene_kind == 2)
-    {
-        INDEX pos_idx = curr_node_idx; // 文本时传入位罄1�71ￄ1�77
-
-        // 模拟生成
-        for (short fea = 0; fea < neuro_head.used_item_num;)
-        {
-            Text_Imagine_Generate_Moudle(pos_idx, scene_idx, fea, ptr);
-        }
-
-        curr_node.was_active = 1;
-    }
-
-    if (scene_kind == 3)
-    {
-        for (short fea = 0; fea < neuro_head.used_item_num;)
-        {
-            Time_Imagine_Generate_Moudle(curr_node_idx, scene_idx, fea, ptr);
-        }
-
-        curr_node.was_active = 1;
-    }
-
-    if (scene_kind == 4)
-    {
-        for (short fea = 0; fea < neuro_head.used_item_num;)
-        {
-            General_Imagine_Generate_Moudle(curr_node_idx, scene_idx, fea, ptr);
-        }
-
-        curr_node.was_active = 1;
-    }
+    curr_node.was_retrieve_generate = 1;
 
     return generate_node_idx_list;
 }
 
 
-inline void Image_Evolve_Generate_Module(Attribute_Head_Item origin_attribute_head, ID curr_node_id,
+
+void inside_attribute_evolve_generate_module(
+    Attribute_Head origin_attribute_head, ID curr_node_id,
     int *&ptr, short &fea)
 {
     int active_stat_num = *(ptr + 1);
     int succss_realize_num = *(ptr + 2);
 
-    ID result_id = *(ptr + origin_attribute_head.item_num - 1);
-
     float rate = succss_realize_num / active_stat_num;
 
+    char condition_kind;
+    char condition_num = origin_attribute_head.condition_num;
+    char condition_size = 0;
 
-    if (rate > 0.5 && origin_attribute_head.attribute_kind == 1 && active_stat_num > 12)
+    char result_kind;
+    char result_num = origin_attribute_head.result_num;
+    char result_size = 0;
+
+    for(int q = 0; q < condition_num; q++)
     {
-        Attribute_Head_Item new_attribute_head;
-        new_attribute_head.attribute_kind = 1;
+        return_item_kind_and_size( ptr, condition_kind, condition_size);
 
-        Neuro_Image_Item origin_image_condition = *(Neuro_Image_Item *)(ptr + 3);
-
-        char direction_scale = origin_image_condition.direction_scale;
-        char distance_scale = origin_image_condition.distance_scale;
-
-        Neuro_Image_Item new_image_result;
-
-        if (direction_scale > 1)
-            new_image_result.direction_scale = direction_scale - 1;
-
-        if (distance_scale > 1)
-            new_image_result.distance_scale = distance_scale - 1;
-
-        // 标记已升级，后续不可重复升级
-        origin_attribute_head.able_update = 2;
-
-        vector<General_Condition> general_condition_list;
-        vector<General_Result> general_result_list;
-
-        General_Result new_result = {.image_result = new_image_result};
-        general_result_list.push_back(new_result);
-
-        Simple_Neuro_Attribute_write(curr_node_id, 0, 1,
-                                     new_attribute_head, general_condition_list, general_result_list);
-    }
-
-    // 图像的精细化丢�般会产生多种条件下的结果，先生成，再根据棢�验剔附1�71ￄ1�77
-
-    // 升级(节点匄1�71ￄ1�77)
-    if (rate > 0.8 && origin_attribute_head.attribute_kind != 2 && active_stat_num > 12)
-    {
-        Attribute_Head_Item new_attribute_head;
-        new_attribute_head.attribute_kind = 2;
-
-        Neuro_Image_Item origin_image_condition = *(Neuro_Image_Item *)(ptr + 3);
-
-        char direction_scale = origin_image_condition.direction_scale;
-        char distance_scale = origin_image_condition.distance_scale;
-
-        Neuro_Image_Item new_image_condition;
-
-        // 内部方向精确
-        if (direction_scale > 1)
-            new_image_condition.direction_scale = direction_scale - 1;
-
-        // 内部距离精确
-        if (distance_scale > 1)
-            new_image_condition.distance_scale = distance_scale - 1;
-
-        // 遍历演化方向
-        for (int a = 0; a < 2; a++)
+        switch(condition_kind)
         {
-            direction_scale;
-            origin_image_condition.direction;
+        case 1:
+        {
+            vector<Neuro_Union_Attribute> general_condition_result_list;
 
-            //
-            for (int b = 0; b < 2; b++)
+            //升级（精细化）
+            if (rate > 0.5 && origin_attribute_head.attribute_kind == 1 && active_stat_num > 12)
             {
-                distance_scale;
-                origin_image_condition.distance;
+                Attribute_Head new_attribute_head;
+                new_attribute_head.attribute_kind = 1;
+
+                Neuro_Image_Item origin_image_condition = *(Neuro_Image_Item *)(ptr);
+
+                char direction_scale = origin_image_condition.direction_scale;
+                char distance_scale = origin_image_condition.distance_scale;
+
+                Neuro_Image_Item new_image_result;
+
+                if (direction_scale > 1)
+                    new_image_result.direction_scale = direction_scale - 1;
+
+                if (distance_scale > 1)
+                    new_image_result.distance_scale = distance_scale - 1;
+
+                origin_attribute_head.able_update = 2;
+
+                Neuro_Union_Attribute new_result = {.image_item = new_image_result};
+                general_condition_result_list.push_back(new_result);
+
+                Simple_Neuro_Attribute_write(curr_node_id, 0, 1,
+                    new_attribute_head, general_condition_result_list);
+            }
+
+            //升级（节点化）
+            if (rate > 0.8 && origin_attribute_head.attribute_kind != 2 && active_stat_num > 12)
+            {
+                Attribute_Head new_attribute_head;
+                new_attribute_head.attribute_kind = 2;
+
+                Neuro_Image_Item origin_image_condition = *(Neuro_Image_Item *)(ptr);
+
+                char direction_scale = origin_image_condition.direction_scale;
+                char distance_scale = origin_image_condition.distance_scale;
+
+                Neuro_Image_Item new_image_condition;
+
+                
+                if (direction_scale > 1)
+                    new_image_condition.direction_scale = direction_scale - 1;
+
+                if (distance_scale > 1)
+                    new_image_condition.distance_scale = distance_scale - 1;
+
+                for (int a = 0; a < 2; a++)
+                {
+                    direction_scale;
+                    origin_image_condition.direction;
+
+                    //
+                    for (int b = 0; b < 2; b++)
+                    {
+                        distance_scale;
+                        origin_image_condition.distance;
+                    }
+                }
+
+                new_attribute_head.able_update = 2;
+
+                vector<Neuro_Union_Attribute> general_condition_result_list;
+
+                neuro_item_delete(curr_node_id, fea, origin_attribute_head.item_num);
+
+                Simple_Neuro_Attribute_write(curr_node_id, 0, 1,
+                    new_attribute_head, general_condition_result_list);
+            }
+
+            //降级（删除）
+            if (rate < 0.1 && origin_attribute_head.attribute_kind == 1 && active_stat_num > 12)
+            {
+                neuro_item_delete(curr_node_id, fea, origin_attribute_head.item_num);
+            }
+
+            //降级（去节点化）
+            if (rate < 0.3 && origin_attribute_head.attribute_kind == 2 && active_stat_num > 12)
+            {
+                Attribute_Head new_item_head;
+                new_item_head.attribute_kind = 2;
+
+                Neuro_Time_Item image_item_II;
+
+                for (int a = 1; a < origin_attribute_head.condition_num; a++)
+                {
+                    return_item_kind_and_size( ptr, condition_kind, condition_size);
+                    image_item_II = *(Neuro_Time_Item *)(ptr);
+                }
+
+                vector<Neuro_Union_Attribute> general_condition_result_list;
+
+                neuro_item_delete(curr_node_id, fea, new_item_head.item_num);
+
+                Simple_Neuro_Attribute_write(curr_node_id, 0, 1,
+                    new_item_head, general_condition_result_list);
             }
         }
-
-        // 标记已升级，后续不可重复升级
-        new_attribute_head.able_update = 2;
-
-        vector<General_Condition> general_condition_list;
-        vector<General_Result> general_result_list;
-
-        neuro_item_delete(curr_node_id, fea, origin_attribute_head.item_num);
-
-        Simple_Neuro_Attribute_write(curr_node_id, 0, 1,
-                                     new_attribute_head, general_condition_list, general_result_list);
-    }
-
-    // 降级(删除)
-    if (rate < 0.1 && origin_attribute_head.attribute_kind == 1 && active_stat_num > 12)
-    {
-        neuro_item_delete(curr_node_id, fea, origin_attribute_head.item_num);
-    }
-
-    // 降级(去节点化)
-    if (rate < 0.3 && origin_attribute_head.attribute_kind == 2 && active_stat_num > 12)
-    {
-        Attribute_Head_Item new_item_head;
-        new_item_head.attribute_kind = 2;
-
-        Neuro_Time_Item image_item_II;
-
-        for (int a = 0; a < origin_attribute_head.condition_num; a++)
+        break;
+        case 2:
         {
-            image_item_II = *(Neuro_Time_Item *)(ptr + 3 + 3 * a);
+            Neuro_Number_Item number_attribute;
         }
-
-        vector<General_Condition> general_condition_list;
-        vector<General_Result> general_result_list;
-
-        neuro_item_delete(curr_node_id, fea, new_item_head.item_num);
-
-        Simple_Neuro_Attribute_write(curr_node_id, 0, 1,
-            new_item_head, general_condition_list, general_result_list);
-    }
-}
-
-
-inline void Time_Evolve_Generate_Module(Attribute_Head_Item origin_attribute_head, ID curr_node_id,
-    int *&ptr, short &fea)
-{
-    int active_stat_num = *(ptr + 1);
-    int succss_realize_num = *(ptr + 2);
-
-    unsigned int result_id = *(ptr + origin_attribute_head.item_num - 1);
-
-    float rate = succss_realize_num / active_stat_num;
-
-    if (rate > 0.5 && origin_attribute_head.attribute_kind == 1)
-    {
-        Attribute_Head_Item new_attribute_head;
-        new_attribute_head.attribute_kind = 1;
-
-        Neuro_Time_Item origin_time_condition;
-        origin_time_condition.time_left_range;
-        origin_time_condition.time_scale;
-
-        char time_range = origin_time_condition.time_left_range;
-        char time_scale = origin_time_condition.time_scale;
-
-        Neuro_Time_Item new_time_condition;
-
-        if (time_range > 1)
-            new_time_condition.time_left_range = time_range;
-
-        if (time_scale > 1)
-            new_time_condition.time_scale = time_scale - 1;
-
-        new_attribute_head.able_update = 2;
-
-        vector<General_Condition> general_condition_list;
-        vector<General_Result> general_result_list;
-
-        Simple_Neuro_Attribute_write(curr_node_id, 0, 1,
-            new_attribute_head, general_condition_list, general_result_list);
-    }
-
-    if (rate > 0.8 && origin_attribute_head.attribute_kind == 1 && active_stat_num > 20)
-    {
-        Attribute_Head_Item new_attribute_head;
-        new_attribute_head.attribute_kind = 2;
-
-        Neuro_Time_Item origin_time_condition = *(Neuro_Time_Item *)(ptr + 3);
-
-        char time_range = origin_time_condition.time_left_range;
-        char time_scale = origin_time_condition.time_scale;
-
-        Neuro_Time_Item new_image_condition;
-
-        // if(direction_scale > 1)
-        //     new_image_condition.direction_scale = direction_scale - 1;
-
-        // if(distance_scale > 1)
-        //     new_image_condition.distance_scale = distance_scale - 1;
-
-        for (int a = 0; a < 2; a++)
+        break;
+        case 3:
         {
-            // direction_scale;
-            // origin_time_condition.direction;
+            vector<Neuro_Union_Attribute> general_condition_result_list;
 
-            // //
-            // for(int b = 0; b < 2; b++)
-            // {
-            //     distance_scale;
-            //     origin_time_condition.distance;
-            // }
+            if (rate > 0.5 && origin_attribute_head.attribute_kind == 1)
+            {
+                Attribute_Head new_attribute_head;
+                new_attribute_head.attribute_kind = 1;
+
+                Neuro_Time_Item origin_time_condition;
+                origin_time_condition.time_left_range;
+                origin_time_condition.time_scale;
+
+                char time_range = origin_time_condition.time_left_range;
+                char time_scale = origin_time_condition.time_scale;
+
+                Neuro_Time_Item new_time_condition;
+
+                if (time_range > 1)
+                    new_time_condition.time_left_range = time_range;
+
+                if (time_scale > 1)
+                    new_time_condition.time_scale = time_scale - 1;
+
+                new_attribute_head.able_update = 2;
+
+                vector<Neuro_Union_Attribute> general_condition_result_list;
+
+                Simple_Neuro_Attribute_write(curr_node_id, 0, 1,
+                    new_attribute_head, general_condition_result_list);
+            }
+
+            if (rate > 0.8 && origin_attribute_head.attribute_kind == 1 && active_stat_num > 20)
+            {
+                Attribute_Head new_attribute_head;
+                new_attribute_head.attribute_kind = 2;
+
+                Neuro_Time_Item origin_time_condition = *(Neuro_Time_Item *)(ptr + 3);
+
+                char time_range = origin_time_condition.time_left_range;
+                char time_scale = origin_time_condition.time_scale;
+
+                Neuro_Time_Item new_image_condition;
+
+                for (int a = 0; a < 2; a++)
+                {
+                    
+                }
+
+                new_attribute_head.able_update = 2;
+                
+                neuro_item_delete(curr_node_id, fea, origin_attribute_head.item_num);
+
+                Simple_Neuro_Attribute_write(curr_node_id, 0, 1,
+                    new_attribute_head, general_condition_result_list);
+            }
+
+            if (rate < 0.4 && origin_attribute_head.attribute_kind == 1 && active_stat_num > 12)
+            {
+                neuro_item_delete(curr_node_id, fea, origin_attribute_head.item_num);
+                ;
+            }
+
+            if (rate < 0.4 && origin_attribute_head.attribute_kind == 2 && active_stat_num > 30)
+            {
+                Attribute_Head new_item_head;
+                new_item_head.attribute_kind = 2;
+
+                Neuro_Time_Item time_condition;
+
+                for (int a = 0; a < origin_attribute_head.condition_num; a++)
+                {
+                    time_condition = *(Neuro_Time_Item *)(ptr + 3 + 3 * a);
+                }
+
+                vector<Neuro_Union_Attribute> general_condition_result_list;
+
+                neuro_item_delete(curr_node_id, fea, new_item_head.item_num);
+
+                Simple_Neuro_Attribute_write(curr_node_id, 0, 1,
+                    new_item_head, general_condition_result_list);
+            }
         }
-
-        new_attribute_head.able_update = 2;
-
-        vector<General_Condition> general_condition_list;
-        vector<General_Result> general_result_list;
-
-        neuro_item_delete(curr_node_id, fea, origin_attribute_head.item_num);
-
-        Simple_Neuro_Attribute_write(curr_node_id, 0, 1,
-                                     new_attribute_head, general_condition_list, general_result_list);
-    }
-
-    if (rate < 0.4 && origin_attribute_head.attribute_kind == 1 && active_stat_num > 12)
-    {
-        neuro_item_delete(curr_node_id, fea, origin_attribute_head.item_num);
-        ;
-    }
-
-    if (rate < 0.4 && origin_attribute_head.attribute_kind == 2 && active_stat_num > 30)
-    {
-        Attribute_Head_Item new_item_head;
-        new_item_head.attribute_kind = 2;
-
-        Neuro_Time_Item time_condition;
-
-        for (int a = 0; a < origin_attribute_head.condition_num; a++)
+        break;
+        case 4:
         {
-            time_condition = *(Neuro_Time_Item *)(ptr + 3 + 3 * a);
+            if (rate > 0.5 && origin_attribute_head.attribute_kind == 1)
+            {
+                Attribute_Head new_attribute_head;
+                new_attribute_head.attribute_kind = 1;
+
+                Neuro_Text_Item text_item = *(Neuro_Text_Item *)(ptr + 3);
+
+                char distance_scale = text_item.distance_scale;
+
+                Neuro_Text_Item new_text_item;
+
+                if (distance_scale > 1)
+                    new_text_item.distance_scale = distance_scale - 1;
+
+                new_attribute_head.able_update = 2;
+
+                vector<Neuro_Union_Attribute> general_condition_result_list;
+
+                Simple_Neuro_Attribute_write(curr_node_id, 0, 1,
+                    new_attribute_head, general_condition_result_list);
+            }
+
+            if (rate < 0.1 && origin_attribute_head.attribute_kind == 1)
+            {
+                neuro_item_delete(curr_node_id, fea, origin_attribute_head.item_num);
+            }
+
+            if (rate < 0.3 && origin_attribute_head.attribute_kind == 2)
+            {
+                Attribute_Head new_item_head;
+                new_item_head.attribute_kind = 1;
+
+                vector<Neuro_Union_Attribute> general_condition_result_list;
+
+                Neuro_Text_Item origin_text_condition;
+
+                for (int a = 0; a < origin_attribute_head.condition_num; a++)
+                {
+                    origin_text_condition = *(Neuro_Text_Item *)(ptr + 3 + 3 * a);
+                    Neuro_Union_Attribute condition = {.text_item = origin_text_condition};
+                    general_condition_result_list.push_back(condition);
+                }
+
+                ID delete_id = *(ptr + origin_attribute_head.item_num - 1);
+
+                neuro_item_delete(curr_node_id, fea, new_item_head.item_num);
+
+                Simple_Neuro_Attribute_write(curr_node_id, 0, 1,
+                    new_item_head, general_condition_result_list);
+
+                neuro_delete(delete_id);
+            }
         }
-
-        vector<General_Condition> general_condition_list;
-        vector<General_Result> general_result_list;
-
-        neuro_item_delete(curr_node_id, fea, new_item_head.item_num);
-
-        Simple_Neuro_Attribute_write(curr_node_id, 0, 1,
-            new_item_head, general_condition_list, general_result_list);
-    }
-}
-
-
-inline void Text_Evolve_Generate_Module(Attribute_Head_Item origin_attribute_head, ID curr_node_id,
-    int *&ptr, short &fea)
-{
-    int active_stat_num = *(ptr + 1);    // 濢�活��统计的次数
-    int succss_realize_num = *(ptr + 2); // 生成、实现的次数
-
-    ID result_id = *(ptr + origin_attribute_head.item_num - 1);
-
-    float rate = succss_realize_num / active_stat_num;
-
-    // 升级(精细匄1�71ￄ1�77)
-    if (rate > 0.5 && origin_attribute_head.attribute_kind == 1)
-    {
-        Attribute_Head_Item new_attribute_head;
-        new_attribute_head.attribute_kind = 1;
-
-        Neuro_Text_Item text_item = *(Neuro_Text_Item *)(ptr + 3);
-
-        char distance_scale = text_item.distance_scale;
-
-        Neuro_Text_Item new_text_item;
-
-        if (distance_scale > 1)
-            new_text_item.distance_scale = distance_scale - 1;
-
-        // 生成多种条目结果
-
-        // 标记已升级，后续不可升级
-        new_attribute_head.able_update = 2;
-
-        vector<General_Condition> general_condition_list;
-        vector<General_Result> general_result_list;
-
-        Simple_Neuro_Attribute_write(curr_node_id, 0, 1,
-                                     new_attribute_head, general_condition_list, general_result_list);
-    }
-
-    // 降级(删除)
-    if (rate < 0.1 && origin_attribute_head.attribute_kind == 1)
-    {
-        neuro_item_delete(curr_node_id, fea, origin_attribute_head.item_num);
-    }
-
-    // 降级(去节点化)
-    if (rate < 0.3 && origin_attribute_head.attribute_kind == 2)
-    {
-        Attribute_Head_Item new_item_head;
-        new_item_head.attribute_kind = 1;
-
-        vector<General_Condition> general_condition_list;
-        vector<General_Result> general_result_list;
-
-        // 原条件其实不用改，但没写别的写入函数
-        Neuro_Text_Item origin_text_condition;
-
-        for (int a = 0; a < origin_attribute_head.condition_num; a++)
+        break;
+        case 5:
         {
-            origin_text_condition = *(Neuro_Text_Item *)(ptr + 3 + 3 * a);
-            General_Condition condition = {.text_condition = origin_text_condition};
-            general_condition_list.push_back(condition);
+            Neuro_Concept_Item concept_item = *(Neuro_Concept_Item*)(ptr);
         }
-
-        ID delete_id = *(ptr + origin_attribute_head.item_num - 1);
-
-        neuro_item_delete(curr_node_id, fea, new_item_head.item_num);
-
-        Simple_Neuro_Attribute_write(curr_node_id, 0, 1,
-                                     new_item_head, general_condition_list, general_result_list);
-
-        neuro_delete(delete_id);
+        break;
+        case 6:
+        {
+            Neuro_Action_Item action_item = *(Neuro_Action_Item*)(ptr);
+        }
+        break;
+        case 7:
+        {
+            Neuro_Belief_Item belief_item = *(Neuro_Belief_Item*)(ptr);
+        }
+        }
     }
-}
-
-
-void Identity_Belief_Evolve_Module(Attribute_Head_Item origin_attribute_head, ID curr_node_id,
-    int *&ptr, short &fea)
-{
-    Neuro_Belief_Item identity_belief_attribute;
-}
-
-
-void Number_Evolve_Module(Attribute_Head_Item origin_attribute_head, ID curr_node_id,
-    int *&ptr, short &fea)
-{
-    Neuro_Number_Item number_attribute;
 }
 
 
@@ -2888,14 +2625,12 @@ void A_Neuro_Basic_Evolve(INDEX curr_node_idx, char scene_kind /*1 2 3 4*/)
         float forward_predict_stability = *(first_ptr + 4);
         float backward_predict_stability = *(first_ptr + 5);
     }
-
     
     for (short fea = 0; fea < neuro_head.used_item_num; fea++)
     {
-        Attribute_Head_Item origin_attribute_head = attribute_head_read(first_ptr);
+        Attribute_Head origin_attribute_head = attribute_head_read(first_ptr);
 
-        
-        if (origin_attribute_head.able_update = 0)
+        if (origin_attribute_head.attribute_kind > 2 || origin_attribute_head.able_update == 0)
         {
             first_ptr += origin_attribute_head.item_num;
             fea += origin_attribute_head.item_num;
@@ -2904,26 +2639,11 @@ void A_Neuro_Basic_Evolve(INDEX curr_node_idx, char scene_kind /*1 2 3 4*/)
 
         char attribute_kind = origin_attribute_head.attribute_kind;
 
+        inside_attribute_evolve_generate_module(origin_attribute_head, self_id,
+            ptr, fea);
 
-        if (scene_kind == 1)
-        {
-            Image_Evolve_Generate_Module(origin_attribute_head, self_id,
-                ptr, fea);
-        }
-        else if (scene_kind == 2)
-        {
-            Text_Evolve_Generate_Module(origin_attribute_head, self_id,
-                ptr, fea);
-        }
-        else if (scene_kind == 3)
-        {
-            Time_Evolve_Generate_Module(origin_attribute_head, self_id,
-                ptr, fea);
-        }
-
-        first_ptr += origin_attribute_head.item_num;
+        ptr += origin_attribute_head.item_num;
         fea += origin_attribute_head.item_num;
-
     }
 }
 
@@ -3023,9 +2743,8 @@ ID new_colour_block_record(char red, char green, char blue)
 
     int *ptr = node_find(id);
 
-    Attribute_Head_Item attribute_head;
-    vector<General_Condition> general_condition_list;
-    vector<General_Result> general_result_list;
+    Attribute_Head attribute_head;
+    vector<Neuro_Union_Attribute> general_condition_result_list;
 
     Neuro_Manner_Item item_require;
     Neuro_Image_Item item_space;
@@ -3037,7 +2756,7 @@ ID new_colour_block_record(char red, char green, char blue)
         item_require.manner_kind = 10;
 
         Simple_Neuro_Attribute_write(id, 0, 0, 
-            attribute_head, general_condition_list, general_result_list);
+            attribute_head, general_condition_result_list);
     }
 
 
@@ -3063,42 +2782,35 @@ void image_a_line_retrieve_generate(
     add_node_c.self_id = COLOUR_LINE_ENTER_SORT[colour_idx];
     add_node_f.self_id = LINE_FORM_ENTER_SORT[form_idx];
 
-    // 若该条边未记彄1�71ￄ1�77
+    
     if (add_node_c.self_id == 0)
     {
-        new_colour_line_record(line_object); // 进行记录
+        new_colour_line_record(line_object);
 
-        // 若该形��未记录
         if (add_node_f.self_id == 0)
         {
-            new_form_line_record(line_object.length, line_object.direction); // 进行记录
+            new_form_line_record(line_object.length, line_object.direction);
         }
     }
 
-    // 未存储内存，装入读取任务队列
     if (pack_index_find(add_node_c.self_id) == 0)
     {
         add_to_Will_Read_Neuro_Queue(add_node_c.self_id);
-        // 加入未读取，准备后续查找
     }
 
-    // 未存储内存，装入读取任务队列
     if (pack_index_find(add_node_f.self_id) == 0)
     {
         add_to_Will_Read_Neuro_Queue(add_node_f.self_id);
     }
 
-    // 线段数据写入
-    Node_Image_Attribute node_image_attribute;
+    Node_Image_Single_Attribute node_image_attribute;
     node_image_attribute.block_num = line_object.qualify_block_num;
     // node_image_attribute.x = line_object.middle_coordinate.x;
     // node_image_attribute.y = line_object.middle_coordinate.y;
 
-    // 线段点添劄1�71ￄ1�77
     INDEX add_node_c_idx = create_a_General_Node(add_node_c);
     INDEX add_node_f_idx = create_a_General_Node(add_node_f);
 
-    // 创建图像数据环节
     create_a_Node_Image_Attribute(add_node_c_idx, node_image_attribute);
     create_a_Node_Image_Attribute(add_node_f_idx, node_image_attribute);
 
@@ -3131,147 +2843,8 @@ void image_nature_attention_generate(
     Image_Scene &last_image = Image_Scene_Storage[last_image_idx];
     Image_Scene &current_image = Image_Scene_Storage[current_image_idx];
 
-    current_image.Block_attention_list.reserve(5);
-
     unsigned short curr_width = current_image.width;
     unsigned short curr_height = current_image.height;
-
-    Rigion_Value_Stat basic;
-    basic.width_unit_size = 1;
-    basic.width = curr_width;
-    basic.height_unit_size = 1;
-    basic.height = curr_height;
-    basic.value_unit_list.resize(curr_width * curr_height);
-
-    auto *last_rgb_ptr = last_image.RGB_Map.data();
-    auto *curr_rgb_ptr = current_image.RGB_Map.data();
-
-    auto *last_att_ptr = last_image.Block_attention_list[0].value_unit_list.data();
-    auto *curr_att_ptr = basic.value_unit_list.data();
-    int total_att = 0;
-
-    if (current_image.is_lock_occupy)
-        return;
-
-    for (int n = 0; n < last_image.RGB_Map.size(); n++)
-    {
-        int att = last_att_ptr[n];
-
-        int diff_r = last_rgb_ptr[n].r - curr_rgb_ptr[n].r;
-        int diff_g = last_rgb_ptr[n].g - curr_rgb_ptr[n].g;
-        int diff_b = last_rgb_ptr[n].b - curr_rgb_ptr[n].b;
-
-        diff_r = (diff_r >= 0 ? diff_r : -diff_r);
-        diff_g = (diff_g >= 0 ? diff_g : -diff_g);
-        diff_b = (diff_b >= 0 ? diff_b : -diff_b);
-
-        int diff_strength = (diff_r + diff_g + diff_b) / 16; // 0~45
-        att = att / 2 + diff_strength;
-
-        total_att += att;
-        curr_att_ptr[n] = att;
-    }
-
-    current_image.sum_nature_attention = total_att;
-    current_image.Block_attention_list.push_back(basic);
-
-    vector<unsigned short> width_s(5);
-    vector<unsigned short> height_s(5);
-
-    width_s[0] = curr_width;
-    height_s[0] = curr_height;
-
-    char count_a = 1;
-
-    while (curr_width > 1920 || curr_height > 1080)
-    {
-        ;
-    }
-
-    // 1920*1080 960*540 480*270 240*135
-    while (curr_width > 480 && curr_height > 270 && count_a < 5)
-    {
-        curr_height = curr_height / 2;
-        curr_width = curr_width / 2;
-        width_s[count_a] = curr_width;
-        height_s[count_a] = curr_height;
-        count_a += 1;
-        current_image;
-    }
-
-    
-    for (int a = 1; a < width_s.size(); a++)
-    {
-        Rigion_Value_Stat rvs;
-        rvs.width = width_s[a];
-        rvs.width_unit_size = current_image.width / rvs.width;
-        rvs.height = height_s[a];
-        rvs.height_unit_size = current_image.height / rvs.height;
-        rvs.value_unit_list.resize(rvs.width * rvs.height);
-
-        current_image.Block_attention_list.push_back(rvs);
-
-        Rigion_Value_Stat &target_area = current_image.Block_attention_list[a];
-        target_area.value_unit_list.resize(target_area.width * target_area.height);
-        Rigion_Value_Stat &origin_area = current_image.Block_attention_list[a - 1];
-
-        auto &origin_unit_attention_list = target_area.value_unit_list;
-        auto &target_unit_attention_list = origin_area.value_unit_list;
-        int origin_width = origin_area.width;
-        int target_width = target_area.width;
-
-        int origin_idx = 0;
-        int target_idx = 0;
-        int origin_y = 0;
-        int target_x = 0;
-
-        int target_unit_num = target_area.value_unit_list.size();
-        int size_occupy_height = target_area.height_unit_size / origin_area.height_unit_size;
-        int size_occupy_width = target_area.width_unit_size / origin_area.width_unit_size;
-        int gap_idx = size_occupy_height * origin_width;
-
-        int origin_left_idx = 0;
-        int origin_const_left_idx = 0;
-        int origin_right_idx;
-        int origin_top = size_occupy_height;
-
-        while (target_idx < target_unit_num)
-        {
-            origin_left_idx = origin_const_left_idx;
-            origin_right_idx = origin_left_idx + size_occupy_width;
-
-            origin_idx = origin_left_idx;
-
-            while (origin_y <= origin_top)
-            {
-                origin_unit_attention_list[target_idx] += target_unit_attention_list[origin_idx];
-
-                origin_idx += 1;
-
-                if (origin_idx == origin_right_idx)
-                {
-                    origin_y += 1;
-                    origin_left_idx += origin_width;
-                    origin_idx = origin_left_idx;
-                    origin_right_idx += origin_width;
-                }
-            }
-
-            target_idx += 1;
-            target_x += 1;
-            origin_const_left_idx += size_occupy_width;
-
-            if (target_x == target_width)
-            {
-                origin_const_left_idx += gap_idx;
-                origin_top += size_occupy_height;
-                target_x = 0;
-            }
-
-        }
-
-    }
-
 
     vector<RGB_Unit> &current_rgb_map = current_image.RGB_Map;
 
@@ -3398,7 +2971,6 @@ void image_nature_attention_generate(
             }
 
             origin_pos += 1;
-
         }
     }
 
@@ -3408,11 +2980,8 @@ void image_nature_attention_generate(
 void image_rough_map_generate(
     INDEX current_Map_idx, char standard_size, int require_base_value = 1)
 {
-    Image_Scene &curr_image = Image_Scene_Storage[current_Map_idx];
+    Image_Scene& curr_image = Image_Scene_Storage[current_Map_idx];
 
-    // 1、生成粗粒化视图
-
-    // 选取原图
     unsigned char suit_one = standard_size / 2;
     char choose_idx = -1;
     char quit = 0;
@@ -3547,19 +3116,6 @@ void image_rough_map_generate(
     }
 
 
-    INDEX att_idx = 0;
-
-    while (curr_image.Block_attention_list[att_idx].height_unit_size != standard_size &&
-           curr_image.Block_attention_list[att_idx].width_unit_size != standard_size)
-    {
-        att_idx++;
-
-        if (curr_image.Block_attention_list.size() <= att_idx)
-            ;
-    }
-
-    vector<int> &attention_unit_list = curr_image.Block_attention_list[att_idx].value_unit_list;
-
     int origin_pos = 0;
 
     for (int y = 0; y < target_height; y++)
@@ -3575,7 +3131,6 @@ void image_rough_map_generate(
 
             auto &diff_colour = origin_block.diff_colour_block;
             auto &block_kind = origin_block.block_kind;
-            auto &block_attention = attention_unit_list[origin_pos];
 
             if (x > 0)
             {
@@ -3585,7 +3140,6 @@ void image_rough_map_generate(
                 {
                     diff_colour |= (1 << 4);
                     block_kind = 2;
-                    block_attention += 15;
                 }
             }
 
@@ -3597,7 +3151,6 @@ void image_rough_map_generate(
                 {
                     diff_colour |= (1 << 0);
                     block_kind = 2;
-                    block_attention += 15;
                 }
             }
 
@@ -3609,7 +3162,6 @@ void image_rough_map_generate(
                 {
                     diff_colour |= (1 << 2);
                     block_kind = 2;
-                    block_attention += 15;
                 }
             }
 
@@ -3621,7 +3173,6 @@ void image_rough_map_generate(
                 {
                     diff_colour |= (1 << 6);
                     block_kind = 2;
-                    block_attention += 15;
                 }
             }
 
@@ -3634,7 +3185,6 @@ void image_rough_map_generate(
                 {
                     diff_colour |= (1 << 3);
                     block_kind = 2;
-                    block_attention += 10;
                 }
             }
 
@@ -3647,7 +3197,6 @@ void image_rough_map_generate(
                 {
                     diff_colour |= (1 << 1);
                     block_kind = 2;
-                    block_attention += 10;
                 }
             }
 
@@ -3660,7 +3209,6 @@ void image_rough_map_generate(
                 {
                     diff_colour |= (1 << 5);
                     block_kind = 2;
-                    block_attention += 10;
                 }
             }
 
@@ -3673,7 +3221,6 @@ void image_rough_map_generate(
                 {
                     diff_colour |= (1 << 7);
                     block_kind = 2;
-                    block_attention += 10;
                 }
             }
 
@@ -3682,7 +3229,7 @@ void image_rough_map_generate(
         }
     }
 
-    generate_view.nave_init = 1;
+    generate_view.have_init = 1;
 
 
     curr_image.Image_rough_view[curr_image.Image_rough_view_number] = generate_view;
@@ -3690,9 +3237,9 @@ void image_rough_map_generate(
 
 }
 
-void init_image_require(
+void init_require_vector(
     INDEX current_image_idx, vector<vector<int>> &require_list,
-    char value_give_kind = 1, char base_value = 10)
+    char base_value = 10)
 {
     Image_Scene &curr_map = Image_Scene_Storage[current_image_idx];
     int height = curr_map.height;
@@ -3704,13 +3251,13 @@ void init_image_require(
     int need_height_layer = 0;
     int need_width_layer = 0;
 
-    while (need_height_size >= 8) // 计算扢�霢�层数
+    while (need_height_size >= 8)
     {
         need_height_size /= 8;
         need_height_layer += 1;
     }
 
-    while (need_width_size >= 8) // 计算扢�霢�层数
+    while (need_width_size >= 8)
     {
         need_width_size /= 8;
         need_width_layer += 1;
@@ -3735,16 +3282,9 @@ void init_image_require(
         chose_calcul_value = need_width_size;
     }
 
-    // 填入基础倄1�71ￄ1�77 复制注意劄1�71ￄ1�77
-    if (value_give_kind == 1)
-    {
-        require_list[0].resize(width * height);
-        require_list[0] = curr_map.Block_attention_list[0].value_unit_list;
-    }
-    else
-    {
-        require_list[0].assign(width * height, base_value);
-    }
+
+    require_list[0].assign(width * height, base_value);
+
 
     int origin_width = width;
     int origin_height = height;
@@ -3762,7 +3302,7 @@ void init_image_require(
     bool have_right_more = 0;
     bool have_top_more = 0;
 
-    // 处理汇�ￄ1�71ￄ1�77
+    
     while (target_stat_idx < need_layer)
     {
         chose_calcul_value /= 8;
@@ -3777,7 +3317,7 @@ void init_image_require(
             {
                 target_width /= 8;
                 origin_width_limit = target_width * 8;
-                target_width += 1; // 余数处理
+                target_width += 1;
             }
             else
                 target_width /= 8;
@@ -3806,7 +3346,7 @@ void init_image_require(
         target_stat.resize(target_width * target_height);
         vector<int> &origin_stat = require_list[target_stat_idx - 1];
 
-        // 将原坐标值映射到新坐栄1�71ￄ1�77
+        
         int origin_idx = 0;
         int target_idx = 0;
         int origin_y = 0;
@@ -3823,12 +3363,12 @@ void init_image_require(
         int origin_right_idx;
         int origin_top = size_occupy_height;
 
-        // 将原坐标值映射到新坐栄1�71ￄ1�77
+        
         while (target_idx < target_unit_num)
         {
             origin_left_idx = origin_const_left_idx;
 
-            if (width_more_value && origin_x == origin_width_limit) // 右界
+            if (width_more_value && origin_x == origin_width_limit)
             {
                 origin_right_idx = origin_left_idx + width_more_value;
                 have_right_more = 1;
@@ -3838,12 +3378,12 @@ void init_image_require(
 
             origin_idx = origin_left_idx;
 
-            // 遍历本块
-            if (have_right_more == 0 && have_top_more == 0) // 完整坄1�71ￄ1�77
+            
+            if (have_right_more == 0 && have_top_more == 0)
             {
                 while (origin_y <= origin_top)
                 {
-                    // 棢�索力求和
+                    
                     target_stat[target_idx] += origin_stat[origin_idx];
 
                     origin_idx += 1;
@@ -3858,11 +3398,9 @@ void init_image_require(
                 }
             }
             else
-            { // 余数坄1�71ￄ1�77
-
+            {
                 while (origin_y <= origin_top)
                 {
-                    // 棢�索需求求咄1�71ￄ1�77
                     target_stat[target_idx] += origin_stat[origin_idx];
 
                     origin_idx += 1;
@@ -3874,13 +3412,12 @@ void init_image_require(
                             origin_y += 1;
                             origin_left_idx += origin_width;
                             origin_idx = origin_left_idx;
-                            origin_right_idx += width_more_value; // 改动
+                            origin_right_idx += width_more_value;
                         }
                     }
                 }
             }
 
-            // 选择下一个块
             target_idx += 1;
             target_x += 1;
             origin_const_left_idx += size_occupy_width;
@@ -3901,11 +3438,10 @@ void init_image_require(
                 target_x = 0;
             }
 
-        } // 丢�层需求遍历完戄1�71ￄ1�77
+        }
 
-    } // 霢�求汇总生成完毄1�71ￄ1�77
+    }
 
-    // 计算总需求度
     char max_idx = require_list.size() - 1;
     auto &max_retrieval_require_list = require_list[max_idx];
     int max_size = require_list[max_idx].size();
@@ -3925,8 +3461,8 @@ void line_appraise(
 
     Point_2d begin_point = curr_line.base_point;
 
-    float ave_x = (curr_line.x_sum - begin_point.x * point_number) / point_number; // x均�ￄ1�71ￄ1�77
-    float ave_y = (curr_line.y_sum - begin_point.y * point_number) / point_number; // y均�ￄ1�71ￄ1�77 相对于初始坐标的误差
+    float ave_x = (curr_line.x_sum - begin_point.x * point_number) / point_number;
+    float ave_y = (curr_line.y_sum - begin_point.y * point_number) / point_number;
 
     int dx = (begin_point.x - ave_x) * 2;
     int dy = (begin_point.y - ave_y) * 2;
@@ -3937,10 +3473,10 @@ void line_appraise(
     curr_line.length = sqrt(dx * dx + dy * dy);
     curr_line.qualify_block_num = point_number;
 
-    float abs_diff_value = 0; // 误差釄1�71ￄ1�77
+    float abs_diff_value = 0;
     float sum_diff_value = 0;
 
-    // 计算拟合奖励玄1�71ￄ1�77
+    
     if (ave_y != 0)
     {
         float slope = ave_y / ave_x;
@@ -3962,7 +3498,7 @@ void line_appraise(
         }
     }
     else
-    { // 防止slope丄1�71ￄ1�770
+    {
 
         for (int i = 0; i < point_number; i++)
         {
@@ -4385,7 +3921,7 @@ void A_Space_Base_Compontent_Detect(INDEX target_block_idx, INDEX image_scene_id
         // 1
         while(fea < neuro_head.used_item_num)
         {
-            Attribute_Head_Item attribute_head = attribute_head_read(ptr);
+            Attribute_Head attribute_head = attribute_head_read(ptr);
 
             char condition_kind;
             char condition_num = attribute_head.condition_num;
@@ -4458,13 +3994,12 @@ void scene_clean()
 struct text_file_unit
 {
     int ch;
-    unsigned int link_id;
+    ID link_id;
 };
 
 
 unordered_map<int, ID> Charter_Find_Id;
 unordered_map<ID, int> Id_Find_Charter;
-
 
 vector<text_file_unit> Enter_CH_Storage;
 
@@ -4557,9 +4092,8 @@ inline void Character_to_node(
                 code = c & 0x07;
                 bytesNeeded = 3;
             }
-        }
-        else
-        {
+
+        } else {
             code = (code << 6) | (c & 0x3F);
             bytesNeeded--;
 
@@ -4581,9 +4115,9 @@ inline void Character_to_node(
         if (Charter_Find_Id.count(utf8_ch))
         {
             node.self_id = (Charter_Find_Id[utf8_ch]);
-        }
-        else
-        {
+
+        } else {
+
             ID id = text_enter_ch_add(utf8_ch);
             node.self_id = id;
         }
@@ -4601,14 +4135,13 @@ inline void Character_to_node(
 void CharVector_To_Network(INDEX scene_idx,
     const vector<char> &input_vec, long long input_time)
 {
-    
     Text_Scene &curr_scene = Text_Scene_Storage[scene_idx];
 
     curr_scene.input_time = input_time;
     curr_scene.source_kind = 1;
-    curr_scene.Text_node_space_from_record_list.clear();
-
-    vector<vector<INDEX>> &text_node_storage_list = curr_scene.Text_node_space_from_record_list;
+    
+    vector<vector<INDEX>> &record_list = curr_scene.Space_form_record[0].record_list;
+    record_list.clear();
 
     vector<INDEX> result;
     result.reserve(input_vec.size());
@@ -4627,7 +4160,7 @@ void CharVector_To_Network(INDEX scene_idx,
     {
         for (int b = 0; b < 8; b++)
         {
-            text_node_storage_list[a][b] = result[result_order];
+            record_list[a][b] = result[result_order];
             result_order++;
         }
     }
@@ -4641,7 +4174,7 @@ vector<char> Network_To_CharVector(INDEX text_idx)
     Text_Scene text_scene = Text_Scene_Storage[text_idx];
 
     vector<vector<INDEX>> &text_node_storage_list =
-        text_scene.Text_node_space_from_record_list;
+        text_scene.Space_form_record[0].record_list;
 
     int original_text_size = text_scene.original_text_size;
     vector<INDEX> &list = text_scene.Original_text;
@@ -4668,7 +4201,7 @@ vector<char> Network_To_CharVector(INDEX text_idx)
     for (INDEX b : list)
     {
         General_Node &node = General_Node_Storage[b];
-        int code = Id_Find_Charter[node.self_id]; // id转字笄1�71ￄ1�77
+        int code = Id_Find_Charter[node.self_id];
 
         if (code <= 0x7F)
         {
@@ -4726,7 +4259,7 @@ void text_operate(
     int beg_pos, int end_pos, char operate_kind)
 {
     Text_Scene &curr_text = Text_Scene_Storage[curr_text_idx];
-    vector<vector<INDEX>> &text_node_storage_list = curr_text.Text_node_space_from_record_list;
+    vector<vector<INDEX>> &text_node_storage_list = curr_text.Space_form_record[0].record_list;
 
     if (operate_kind == 0)
     {
@@ -4743,22 +4276,22 @@ void text_operate(
 
 
 unsigned int Mouse_DwFlags[10] = {
-    0x0001, // 相对移动	MOUSEEVENTF_MOVE
-    0x0002, // 左键按下	MOUSEEVENTF_LEFTDOWN
-    0x0004, // 左键抬起	MOUSEEVENTF_LEFTUP
-    0x0008, // 右键按下	MOUSEEVENTF_RIGHTDOWN
-    0x0010, // 右键抬起	MOUSEEVENTF_RIGHTUP
-    0x0020, // 中键按下	MOUSEEVENTF_MIDDLEDOWN
-    0x0040, // 中键抬起  MOUSEEVENTF_MIDDLEUP
-    0x0800, // 垂直滚轮	MOUSEEVENTF_WHEEL
-    0x1000, // 横向滚轮	MOUSEEVENTF_HWHEEL
-    0x8000  // 绝对移动	MOUSEEVENTF_ABSOLUTE
+    0x0001, //相对移动	MOUSEEVENTF_MOVE
+    0x0002, //左键按下	MOUSEEVENTF_LEFTDOWN
+    0x0004, //左键抬起	MOUSEEVENTF_LEFTUP
+    0x0008, //右键按下	MOUSEEVENTF_RIGHTDOWN
+    0x0010, //右键抬起	MOUSEEVENTF_RIGHTUP
+    0x0020, //中键按下	MOUSEEVENTF_MIDDLEDOWN 
+    0x0040, //中键抬起  MOUSEEVENTF_MIDDLEUP
+    0x0800, //垂直滚轮	MOUSEEVENTF_WHEEL
+    0x1000, //横向滚轮	MOUSEEVENTF_HWHEEL
+    0x8000  //绝对移动	MOUSEEVENTF_ABSOLUTE
 };
 
 
 unsigned int Keyboard_DwFlags[2] = {
-    0x0000, // 按下 KEYEVENTF_KEYDOWN
-    0x0002  // 松开 KEYEVENTF_KEYUP
+    0x0000, //按下 KEYEVENTF_KEYDOWN
+    0x0002  //松开 KEYEVENTF_KEYUP
 };
 
 
@@ -4916,9 +4449,9 @@ Model_Output_Action random_keybord()
     int d = Press_Release_choose_dist(Keybord_Gen);
 
     if (d == 0)
-        moa.dwFlags = 0x0000; // 按下 KEYEVENTF_KEYDOWN
+        moa.dwFlags = 0x0000; // 鎸変笅 KEYEVENTF_KEYDOWN
     else
-        moa.dwFlags = 0x0002; // 松开 KEYEVENTF_KEYUP
+        moa.dwFlags = 0x0002; // 鏉惧紑 KEYEVENTF_KEYUP
 
     return moa;
 }
@@ -4944,16 +4477,16 @@ Model_Output_Action random_mouse()
 
     moa.dwFlags = Mouse_DwFlags[d];
 
-    if (moa.dwFlags == 0x0001     // 相对移动	MOUSEEVENTF_MOVE
-        || moa.dwFlags == 0x8000) // 绝对移动 MOUSEEVENTF_ABSOLUTE
+    if (moa.dwFlags == 0x0001     // 鐩稿绉诲姩	MOUSEEVENTF_MOVE
+        || moa.dwFlags == 0x8000) // 缁濆绉诲姩 MOUSEEVENTF_ABSOLUTE
     {
         moa.x = rand_0_to_255();
         moa.y = rand_0_to_255();
     }
 
 
-    if (moa.dwFlags == 0x0800     // 垂直滚轮	MOUSEEVENTF_WHEEL
-        || moa.dwFlags == 0x1000) // 横向滚轮 MOUSEEVENTF_HWHEEL
+    if (moa.dwFlags == 0x0800     // 鍨傜洿婊氳疆	MOUSEEVENTF_WHEEL
+        || moa.dwFlags == 0x1000) // 妯悜婊氳疆 MOUSEEVENTF_HWHEEL
     {
         moa.mouseData = rand_0_to_255() - 128;
     }
@@ -4962,9 +4495,9 @@ Model_Output_Action random_mouse()
 }
 
 
-void External_Action_Choose(void)
+void External_Action_Choose()
 {
-    discrete_distribution<int> action_choose_dist(Action_Choose_Weights.begin(), Action_Choose_Weights.end()); // 填入注意力的倄1�71ￄ1�77
+    discrete_distribution<int> action_choose_dist(Action_Choose_Weights.begin(), Action_Choose_Weights.end());
 
     uniform_int_distribution<> equal_dist(0, 4);
 
@@ -4974,7 +4507,7 @@ void External_Action_Choose(void)
     //
     Model_Output_Action model_action;
 
-    int random_tended;
+    int random_explore_tended;
     int aim_tended;
 
     int mouse_tended = 100;
@@ -4986,7 +4519,7 @@ void External_Action_Choose(void)
 
     while (n < action_limit)
     {
-        int choose_I[2] = {random_tended, aim_tended};
+        int choose_I[2] = {random_explore_tended, aim_tended};
 
         discrete_distribution<int> action_kind_dist(choose_I, choose_I + 1);
         char action_kind = action_kind_dist(Motion_Gen);
